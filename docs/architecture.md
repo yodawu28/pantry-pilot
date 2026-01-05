@@ -21,5 +21,5 @@ MVP gồm:
 ## 4) Sequence Diagram — Recipe Ingest → Embed → Qdrant Upsert
 ![Sequence Diagram](images/diagram_3.png)
 
-5) Sequence Diagram — Recommend Recipes
+## 5) Sequence Diagram — Recommend Recipes
 ![Sequence Diagram](images/diagram_4.png)
