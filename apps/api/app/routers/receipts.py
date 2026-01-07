@@ -9,20 +9,20 @@ from app.routers.response.receipt import ReceiptResponse, ReceiptsResponse
 from app.services.minio_service import MinioService
 
 
-
 router = APIRouter(prefix="/receipts", tags=["receipts"])
 minio_service = MinioService()
+
 
 @router.post("", status_code=201, response_model=ReceiptResponse)
 async def upload_receipt(
     file: UploadFile = File(...),
     purchase_date: date = Form(...),
     user_id: int = Form(1),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Upload receipt image
-    
+
     - **file**: Image file (jpg/png/jpeg)
     - **purchase_date**: Date of purchase
     - **user_id**: User ID (default: 1)
@@ -33,10 +33,7 @@ async def upload_receipt(
 
     # save to DB
     receipt = Receipt(
-        user_id = user_id,
-        image_path = image_path,
-        purchase_date = purchase_date,
-        status = "uploaded"
+        user_id=user_id, image_path=image_path, purchase_date=purchase_date, status="uploaded"
     )
 
     db.add(receipt)
@@ -44,19 +41,17 @@ async def upload_receipt(
     await db.refresh(receipt)
 
     return ReceiptResponse(
-        id = receipt.id,
+        id=receipt.id,
         user_id=receipt.user_id,
         image_path=receipt.image_path,
         purchase_date=str(receipt.purchase_date),
         status=receipt.status,
-        created_at=receipt.created_at.isoformat()
+        created_at=receipt.created_at.isoformat(),
     )
 
+
 @router.get("", response_model=ReceiptsResponse)
-async def list_receipts(
-        user_id: int = 1,
-        db: AsyncSession = Depends(get_db)
-):
+async def list_receipts(user_id: int = 1, db: AsyncSession = Depends(get_db)):
     """
     Get all receipts for a user
 
@@ -66,17 +61,16 @@ async def list_receipts(
     result = await db.execute(select(Receipt).where(Receipt.user_id == user_id))
     receipts = result.scalars().all()
 
-    responses = [ReceiptResponse(
-        id = receipt.id,
-        user_id=receipt.user_id,
-        image_path=receipt.image_path,
-        purchase_date=str(receipt.purchase_date),
-        status=receipt.status,
-        created_at=receipt.created_at.isoformat()
+    responses = [
+        ReceiptResponse(
+            id=receipt.id,
+            user_id=receipt.user_id,
+            image_path=receipt.image_path,
+            purchase_date=str(receipt.purchase_date),
+            status=receipt.status,
+            created_at=receipt.created_at.isoformat(),
+        )
+        for receipt in receipts
+    ]
 
-    ) for receipt in receipts]
-
-    return ReceiptsResponse(
-        total = len(responses),
-        receipts=responses
-    )
+    return ReceiptsResponse(total=len(responses), receipts=responses)

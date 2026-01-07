@@ -1,13 +1,10 @@
-
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """ Application settings from environment variables """
+    """Application settings from environment variables"""
 
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     # database
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/pantry_pilot"

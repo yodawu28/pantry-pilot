@@ -5,6 +5,7 @@ from minio.error import S3Error
 from fastapi import UploadFile, HTTPException
 from app.config import settings
 
+
 class MinioService:
     """Service for MinIO object store"""
 
@@ -13,12 +14,11 @@ class MinioService:
             settings.minio_endpoint,
             access_key=settings.minio_access_key,
             secret_key=settings.minio_secret_key,
-            secure=settings.minio_secure
+            secure=settings.minio_secure,
         )
 
         self.bucket = settings.minio_bucket
         self._ensure_bucket()
-
 
     async def upload_file(self, file: UploadFile) -> str:
         """Upload file to MinIO"""
@@ -40,12 +40,10 @@ class MinioService:
                 length=len(contents),
                 content_type=file.content_type or "application/octet-stream",
             )
-            
+
             return f"minio://{self.bucket}/{object_name}"
         except S3Error as e:
             raise HTTPException(status_code=500, detail=f"Failed to generate URL: {str(e)}")
-
-
 
     def _ensure_bucket(self):
         """Create bucket if not exists"""
