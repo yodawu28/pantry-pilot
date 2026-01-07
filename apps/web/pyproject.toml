@@ -1,0 +1,14 @@
+[project]
+name = "pantry-pilot-web"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit>=1.30.0",
+    "httpx>=0.26.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4",
+]

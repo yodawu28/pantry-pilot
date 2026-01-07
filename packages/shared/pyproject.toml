@@ -1,0 +1,11 @@
+[project]
+name = "pantry-pilot-shared"
+version = "1.0.0"
+requires-python = ">=3.11"
+dependencies = [
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4",
+]
