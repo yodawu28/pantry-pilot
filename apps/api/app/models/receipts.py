@@ -36,3 +36,9 @@ class Receipt(Base):
         DateTime(timezone=True),
         onupdate=func.now(),
     )
+
+
+def create_receipt(user_id: int, image_path: str, purchase_date: date) -> Receipt:
+    return Receipt(
+        user_id=user_id, image_path=image_path, purchase_date=purchase_date, status="uploaded"
+    )
