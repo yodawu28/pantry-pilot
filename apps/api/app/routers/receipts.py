@@ -1,5 +1,5 @@
 from datetime import date
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -36,7 +36,7 @@ async def upload_receipt(
         image_path=receipt.image_path,
         purchase_date=str(receipt.purchase_date),
         status=receipt.status,
-        created_at=receipt.created_at.isoformat(),
+        created_at=receipt.created_at.isoformat() if receipt.created_at else "",
     )
 
 
@@ -60,7 +60,7 @@ async def list_receipts(
             image_path=receipt.image_path,
             purchase_date=str(receipt.purchase_date),
             status=receipt.status,
-            created_at=receipt.created_at.isoformat(),
+            created_at=receipt.created_at.isoformat() if receipt.created_at else "",
         )
         for receipt in receipts
     ]
@@ -70,3 +70,29 @@ async def list_receipts(
         last_id = responses[-1].id
 
     return ReceiptsResponse(total=len(responses), receipts=responses, last_id=last_id)
+
+
+@router.get("/{id}", response_model=ReceiptResponse)
+async def get_receipt(id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Get receipt by id
+
+    - **id**: Id of receipt
+    """
+
+    receipt_service = ReceiptService(db)
+    receipt = await receipt_service.get(id)
+
+    if not receipt:
+        raise HTTPException(status_code=404, detail=f"Receipt with id {id} not found")
+
+    return ReceiptResponse(
+        id=receipt.id,
+        user_id=receipt.user_id,
+        image_path=receipt.image_path,
+        purchase_date=str(receipt.purchase_date),
+        status=receipt.status,
+        created_at=receipt.created_at.isoformat() if receipt.created_at else "",
+    )
+
+

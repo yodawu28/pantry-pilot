@@ -33,3 +33,7 @@ class ReceiptService:
         return await self.receipt_repository.get_all(
             {"user_id": user_id, "last_id": last_id, "limit": limit}
         )
+
+    async def get(self, id: int) -> Receipt | None:
+        """Get receipt by Id"""
+        return await self.receipt_repository.get_by_id(id)
