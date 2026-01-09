@@ -11,7 +11,7 @@ async def test_health_check():
     # Mock MinioService to prevent connection attempts during import
     mock_minio = MagicMock()
     app.dependency_overrides[get_minio_service] = lambda: mock_minio
-    
+
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/health")

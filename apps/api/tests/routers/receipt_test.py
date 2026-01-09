@@ -14,7 +14,7 @@ async def test_upload_receipt_endpoint(mocker):
     # Mock MinioService
     mock_minio = MagicMock()
     app.dependency_overrides[get_minio_service] = lambda: mock_minio
-    
+
     # Mock service
     mock_service = AsyncMock()
     mock_receipt = Receipt(
@@ -51,7 +51,7 @@ async def test_list_receipts_endpoint(mocker):
     # Mock MinioService
     mock_minio = MagicMock()
     app.dependency_overrides[get_minio_service] = lambda: mock_minio
-    
+
     mock_service = AsyncMock()
     mock_service.get_receipts.return_value = [
         Receipt(
@@ -92,7 +92,7 @@ async def test_upload_multiple_receipts_endpoint(mocker):
     # Mock MinioService
     mock_minio = MagicMock()
     app.dependency_overrides[get_minio_service] = lambda: mock_minio
-    
+
     mock_service = AsyncMock()
     mock_service.upload_receipts.return_value = 3
 
