@@ -50,6 +50,7 @@ async def test_get_receipts(mocker):
     """Test getting receipts"""
     mock_db = AsyncMock()
     mock_repo = AsyncMock()
+    mock_minio = AsyncMock()
 
     receipts = [
         Receipt(id=1, user_id=1, image_path="img1.jpg", purchase_date=date.today()),
@@ -59,7 +60,7 @@ async def test_get_receipts(mocker):
 
     mocker.patch("app.services.receipt_service.ReceiptRepository", return_value=mock_repo)
 
-    service = ReceiptService(mock_db)
+    service = ReceiptService(mock_db, mock_minio)
     service.receipt_repository = mock_repo
 
     result = await service.get_receipts(1)
@@ -72,6 +73,7 @@ async def test_get_receipt_by_id(mocker):
     """Test get receipt by ID"""
     mock_db = AsyncMock()
     mock_repo = AsyncMock()
+    mock_minio = AsyncMock()
 
     receipt = Receipt(
         id=1, user_id=1, image_path="img1.jpg", purchase_date=date.today(), status="uploaded"
@@ -80,7 +82,7 @@ async def test_get_receipt_by_id(mocker):
 
     mocker.patch("app.services.receipt_service.ReceiptRepository", return_value=mock_repo)
 
-    service = ReceiptService(mock_db)
+    service = ReceiptService(mock_db, mock_minio)
     service.receipt_repository = mock_repo
 
     result = await service.get(1)
@@ -95,12 +97,13 @@ async def test_get_receipt_by_id_not_found(mocker):
     """Test get receipt by ID when not found"""
     mock_db = AsyncMock()
     mock_repo = AsyncMock()
+    mock_minio = AsyncMock()
 
     mock_repo.get_by_id.return_value = None
 
     mocker.patch("app.services.receipt_service.ReceiptRepository", return_value=mock_repo)
 
-    service = ReceiptService(mock_db)
+    service = ReceiptService(mock_db, mock_minio)
     service.receipt_repository = mock_repo
 
     result = await service.get(999)
