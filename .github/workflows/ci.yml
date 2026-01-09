@@ -28,17 +28,17 @@ jobs:
       - name: Run linting (ruff)
         run: |
           cd apps/api
-          ruff check .
+          uv run ruff check .
 
       - name: Run formatting check (black)
         run: |
           cd apps/api
-          black --check .
+          uv run black --check .
 
       - name: Run tests
         run: |
           cd apps/api
-          pytest --cov=app tests/
+          uv run pytest --cov=app tests/
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
