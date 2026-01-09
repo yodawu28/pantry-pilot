@@ -23,7 +23,7 @@ jobs:
       - name: Install API dependencies
         run: |
           cd apps/api
-          uv pip install --system -r pyproject.toml
+          uv pip install --system .
 
       - name: Run linting (ruff)
         run: |

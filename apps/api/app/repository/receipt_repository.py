@@ -34,7 +34,7 @@ class ReceiptRepository:
         last_id: Optional[int] = params.get("last_id")
         limit: int = int(params.get("limit", 5))
 
-        conditions = self.__get_condtions(params)
+        conditions = self.__get_conditions(params)
 
         if last_id is not None:
             conditions.append(Receipt.id > last_id)
@@ -45,7 +45,7 @@ class ReceiptRepository:
 
         return list(result.scalars().all())
 
-    def __get_condtions(self, params: dict) -> List:
+    def __get_conditions(self, params: dict) -> List:
         conditions = []
         if "user_id" in params:
             conditions.append(Receipt.user_id == params["user_id"])
