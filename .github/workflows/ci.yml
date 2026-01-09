@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install API dependencies
+        run: |
+          cd apps/api
+          uv pip install --system .
+
+      - name: Run linting (ruff)
+        run: |
+          cd apps/api
+          uv run ruff check .
+
+      - name: Run formatting check (black)
+        run: |
+          cd apps/api
+          uv run black --check .
+
+      - name: Run tests
+        run: |
+          cd apps/api
+          uv run pytest --cov=app tests/
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/api/coverage.xml
+          flags: api

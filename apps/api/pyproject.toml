@@ -1,0 +1,36 @@
+[project]
+name = "pantry-pilot-api"
+version = "1.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "sqlalchemy>=2.0.25",
+    "asyncpg>=0.29.0",
+    "alembic>=1.13.0",
+    "python-dotenv>=1.0.0",
+    "python-multipart>=0.0.6",
+    "minio>=7.2.0",
+    "greenlet>=3.3.0",
+    "ruff>=0.14.10",
+    "black>=25.12.0",
+    "aiosqlite>=0.22.1",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4",
+    "pytest-asyncio>=0.23",
+    "pytest-mock>=3.12",
+    "pytest-cov>=4.1",
+    "httpx>=0.26",
+]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+python_files = "test_*.py *_test.py"
+python_functions = "test_*"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
