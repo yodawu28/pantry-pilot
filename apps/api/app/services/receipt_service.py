@@ -1,6 +1,6 @@
 from datetime import date
 import sys
-from typing import List
+from typing import List, Optional
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,10 +10,10 @@ from app.models.receipts import Receipt, create_receipt
 
 
 class ReceiptService:
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, minio_service: Optional[MinioService] = None) -> None:
         self.db = db
         self.receipt_repository = ReceiptRepository(db)
-        self.minio_service = MinioService()
+        self.minio_service = minio_service or MinioService()
 
     async def upload_receipt(self, file: UploadFile, purchase_date: date, user_id: int) -> Receipt:
         """Upload new receipt"""

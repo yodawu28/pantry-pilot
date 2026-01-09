@@ -10,7 +10,11 @@ from app.services.receipt_service import ReceiptService
 
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
-minio_service = MinioService()
+
+
+def get_minio_service() -> MinioService:
+    """Dependency to get MinioService instance"""
+    return MinioService()
 
 
 @router.post("", status_code=201, response_model=ReceiptResponse)
@@ -19,6 +23,7 @@ async def upload_receipt(
     purchase_date: date = Form(...),
     user_id: int = Form(1),
     db: AsyncSession = Depends(get_db),
+    minio_service: MinioService = Depends(get_minio_service),
 ):
     """
     Upload receipt image
@@ -28,7 +33,7 @@ async def upload_receipt(
     - **user_id**: User ID (default: 1)
     """
 
-    receipt_service = ReceiptService(db)
+    receipt_service = ReceiptService(db, minio_service)
     receipt = await receipt_service.upload_receipt(file, purchase_date, user_id)
 
     return ReceiptResponse(
@@ -47,6 +52,7 @@ async def upload_receipts(
     purchase_date: date = Form(...),
     user_id: int = Form(1),
     db: AsyncSession = Depends(get_db),
+    minio_service: MinioService = Depends(get_minio_service),
 ):
     """
     Upload multiple receipt images
@@ -56,7 +62,7 @@ async def upload_receipts(
     - **user_id**: User ID (default: 1)
     """
 
-    receipt_service = ReceiptService(db)
+    receipt_service = ReceiptService(db, minio_service)
     total = await receipt_service.upload_receipts(files, purchase_date, user_id)
 
     return ReceiptsUploadResponse(total=total)
