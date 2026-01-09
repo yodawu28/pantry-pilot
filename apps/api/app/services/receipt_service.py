@@ -26,7 +26,9 @@ class ReceiptService:
 
         return await self.receipt_repository.save(receipt)
 
-    async def upload_receipts(self, files: List[UploadFile], purchase_date: date, user_id: int) -> int:
+    async def upload_receipts(
+        self, files: List[UploadFile], purchase_date: date, user_id: int
+    ) -> int:
         """Upload new receipts"""
         receipts = []
 

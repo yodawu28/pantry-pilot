@@ -15,15 +15,12 @@ def render_upload_page():
             "Choose receipt image",
             type=["jpg", "jpeg", "png"],
             help="Upload a photo of your receipt",
-            key="single_upload_file"
+            key="single_upload_file",
         )
 
     with col2:
         purchase_date = st.date_input(
-            "Purchase Date",
-            value=date.today(),
-            max_value=date.today(),
-            key="single_upload_date"
+            "Purchase Date", value=date.today(), max_value=date.today(), key="single_upload_date"
         )
 
     if upload_file is not None:
@@ -43,25 +40,25 @@ def render_upload_page():
                     if response.status_code == 201:
                         st.success("✅ Receipt uploaded successfully!")
                         st.balloons()
-                        
+
                         # Display receipt details in a nice format
                         receipt = response.json()
-                        
+
                         st.markdown("### 🧾 Receipt Details")
                         col1, col2, col3 = st.columns(3)
-                        
+
                         with col1:
                             st.metric("Receipt ID", f"#{receipt['id']}")
-                        
+
                         with col2:
-                            st.metric("Status", receipt['status'].upper())
-                        
+                            st.metric("Status", receipt["status"].upper())
+
                         with col3:
-                            st.metric("Purchase Date", receipt['purchase_date'])
-                        
+                            st.metric("Purchase Date", receipt["purchase_date"])
+
                         st.info(f"📁 Stored at: `{receipt['image_path']}`")
                         st.caption(f"Created: {receipt.get('created_at', 'N/A')}")
-                        
+
                         # Optional: Show JSON in expander for debugging
                         with st.expander("🔍 View raw data"):
                             st.json(receipt)

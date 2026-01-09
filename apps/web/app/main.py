@@ -2,11 +2,7 @@ import streamlit as st
 from components import render_header, render_footer
 from views import render_upload_page, render_receipts_list, render_bulk_upload_page
 
-st.set_page_config(
-    page_title="Pantry Pilot",
-    page_icon="🥘",
-    layout="wide"
-)
+st.set_page_config(page_title="Pantry Pilot", page_icon="🥘", layout="wide")
 
 # Header
 render_header()

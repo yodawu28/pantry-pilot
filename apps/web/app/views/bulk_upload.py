@@ -16,26 +16,23 @@ def render_bulk_upload_page():
             type=["jpg", "jpeg", "png"],
             help="Upload multiple photos of your receipts",
             accept_multiple_files=True,
-            key="bulk_upload_files"
+            key="bulk_upload_files",
         )
 
     with col2:
         purchase_date = st.date_input(
-            "Purchase Date",
-            value=date.today(),
-            max_value=date.today(),
-            key="bulk_upload_date"
+            "Purchase Date", value=date.today(), max_value=date.today(), key="bulk_upload_date"
         )
 
     if upload_files:
         st.info(f"📎 {len(upload_files)} file(s) selected")
-        
+
         # Show preview in columns
         cols = st.columns(min(len(upload_files), 3))
         for idx, file in enumerate(upload_files[:3]):
             with cols[idx]:
                 st.image(file, caption=f"Preview {idx+1}")
-        
+
         if len(upload_files) > 3:
             st.caption(f"... and {len(upload_files) - 3} more file(s)")
 
@@ -55,22 +52,22 @@ def render_bulk_upload_page():
                         result = response.json()
                         st.success(f"✅ Successfully uploaded {result['total']} receipt(s)!")
                         st.balloons()
-                        
+
                         # Display summary
                         st.markdown("### 📊 Upload Summary")
                         col1, col2, col3 = st.columns(3)
-                        
+
                         with col1:
-                            st.metric("Total Uploaded", result['total'])
-                        
+                            st.metric("Total Uploaded", result["total"])
+
                         with col2:
                             st.metric("Purchase Date", str(purchase_date))
-                        
+
                         with col3:
                             st.metric("Status", "UPLOADED")
-                        
+
                         st.info("💡 Check the 'My Receipts' tab to view your uploaded receipts")
-                        
+
                         # Optional: Show raw response
                         with st.expander("🔍 View raw response"):
                             st.json(result)

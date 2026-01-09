@@ -1,7 +1,7 @@
 from typing import List, Optional
 from app.models.receipts import Receipt
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, insert
+from sqlalchemy import select, and_
 
 
 class ReceiptRepository:
@@ -20,7 +20,7 @@ class ReceiptRepository:
         """Save multiple receipts and return the number of rows inserted"""
         self.db.add_all(receipts)
         await self.db.commit()
-        
+
         return len(receipts)
 
     async def get_by_id(self, receipt_id: int) -> Receipt | None:

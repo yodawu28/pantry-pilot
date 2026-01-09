@@ -116,5 +116,3 @@ async def get_receipt(id: int, db: AsyncSession = Depends(get_db)):
         status=receipt.status,
         created_at=receipt.created_at.isoformat() if receipt.created_at else "",
     )
-
-
