@@ -13,6 +13,10 @@ class ReceiptResponse(BaseModel):
     created_at: str
 
 
+class ReceiptsUploadResponse(BaseModel):
+    total: int
+
+
 class ReceiptsResponse(BaseModel):
     total: int
     receipts: List[ReceiptResponse]

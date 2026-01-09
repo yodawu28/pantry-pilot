@@ -69,3 +69,29 @@ async def test_get_receipt_by_id_not_found(db: AsyncSession):
     found = await repo.get_by_id(999999)
     
     assert found is None
+
+
+@pytest.mark.asyncio
+async def test_save_many_receipts(db: AsyncSession):
+    """Test saving multiple receipts at once"""
+    repo = ReceiptRepository(db)
+    
+    # Create multiple receipts
+    receipts = [
+        Receipt(
+            user_id=1,
+            image_path=f"minio://bucket/image{i}.jpg",
+            purchase_date=date(2025, 12, 1),
+            status="uploaded"
+        )
+        for i in range(5)
+    ]
+    
+    # Save all receipts
+    count = await repo.save_many(receipts)
+    
+    assert count == 5
+    
+    # Verify they were saved
+    all_receipts = await repo.get_all({"user_id": 1, "limit": 10})
+    assert len(all_receipts) >= 5

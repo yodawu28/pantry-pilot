@@ -1,9 +1,10 @@
 from datetime import date
+from typing import List
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.routers.response.receipt import ReceiptResponse, ReceiptsResponse
+from app.routers.response.receipt import ReceiptResponse, ReceiptsResponse, ReceiptsUploadResponse
 from app.services.minio_service import MinioService
 from app.services.receipt_service import ReceiptService
 
@@ -38,6 +39,27 @@ async def upload_receipt(
         status=receipt.status,
         created_at=receipt.created_at.isoformat() if receipt.created_at else "",
     )
+
+
+@router.post("/bulk", status_code=201, response_model=ReceiptsUploadResponse)
+async def upload_receipts(
+    files: List[UploadFile] = File(...),
+    purchase_date: date = Form(...),
+    user_id: int = Form(1),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Upload multiple receipt images
+
+    - **files**: List of image files (jpg/png/jpeg)
+    - **purchase_date**: Date of purchase
+    - **user_id**: User ID (default: 1)
+    """
+
+    receipt_service = ReceiptService(db)
+    total = await receipt_service.upload_receipts(files, purchase_date, user_id)
+
+    return ReceiptsUploadResponse(total=total)
 
 
 @router.get("", response_model=ReceiptsResponse)

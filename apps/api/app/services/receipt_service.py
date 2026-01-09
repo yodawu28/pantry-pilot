@@ -26,6 +26,19 @@ class ReceiptService:
 
         return await self.receipt_repository.save(receipt)
 
+    async def upload_receipts(self, files: List[UploadFile], purchase_date: date, user_id: int) -> int:
+        """Upload new receipts"""
+        receipts = []
+
+        for file in files:
+            image_path = await self.minio_service.upload_file(file)
+            receipt = create_receipt(
+                user_id=user_id, image_path=image_path, purchase_date=purchase_date
+            )
+            receipts.append(receipt)
+
+        return await self.receipt_repository.save_many(receipts)
+
     async def get_receipts(
         self, user_id: int, last_id: int = sys.maxsize, limit: int = 5
     ) -> List[Receipt]:

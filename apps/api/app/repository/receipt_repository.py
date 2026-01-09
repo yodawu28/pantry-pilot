@@ -1,7 +1,7 @@
 from typing import List, Optional
 from app.models.receipts import Receipt
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, insert
 
 
 class ReceiptRepository:
@@ -9,11 +9,19 @@ class ReceiptRepository:
         self.db = db
 
     async def save(self, receipt: Receipt) -> Receipt:
+        """Save a single receipt and return it"""
         self.db.add(receipt)
         await self.db.commit()
         await self.db.refresh(receipt)
 
         return receipt
+
+    async def save_many(self, receipts: List[Receipt]) -> int:
+        """Save multiple receipts and return the number of rows inserted"""
+        self.db.add_all(receipts)
+        await self.db.commit()
+        
+        return len(receipts)
 
     async def get_by_id(self, receipt_id: int) -> Receipt | None:
         result = await self.db.execute(select(Receipt).where(Receipt.id == receipt_id))

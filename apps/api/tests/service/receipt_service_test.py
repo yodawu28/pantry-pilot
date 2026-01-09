@@ -130,3 +130,52 @@ async def test_get_receipt_by_id_not_found(mocker):
     
     assert result is None
     mock_repo.get_by_id.assert_called_once_with(999)
+
+
+@pytest.mark.asyncio
+async def test_upload_multiple_receipts(mocker):
+    """Test uploading multiple receipts"""
+    mock_db = AsyncMock()
+    mock_repo = AsyncMock()
+    mock_minio = AsyncMock()
+    
+    mocker.patch(
+        'app.services.receipt_service.ReceiptRepository',
+        return_value=mock_repo
+    )
+    mocker.patch(
+        'app.services.receipt_service.MinioService',
+        return_value=mock_minio
+    )
+    
+    # Mock MinIO to return different paths for each file
+    mock_minio.upload_file.side_effect = [
+        "minio://bucket/image1.jpg",
+        "minio://bucket/image2.jpg",
+        "minio://bucket/image3.jpg"
+    ]
+    
+    # Mock save_many to return count
+    mock_repo.save_many.return_value = 3
+    
+    service = ReceiptService(mock_db)
+    service.receipt_repository = mock_repo
+    service.minio_service = mock_minio
+    
+    # Create mock files
+    mock_files = [AsyncMock(spec=UploadFile) for _ in range(3)]
+    
+    # Test
+    count = await service.upload_receipts(
+        mock_files,
+        date(2025, 12, 1),
+        user_id=1
+    )
+    
+    assert count == 3
+    assert mock_minio.upload_file.call_count == 3
+    mock_repo.save_many.assert_called_once()
+    
+    # Verify receipts list passed to save_many
+    receipts_arg = mock_repo.save_many.call_args[0][0]
+    assert len(receipts_arg) == 3
