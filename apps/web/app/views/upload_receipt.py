@@ -8,6 +8,14 @@ def render_upload_page():
     """Render the upload receipt page"""
     st.subheader("Upload Receipt")
 
+    # Initialize session state for upload tracking
+    if 'upload_success' not in st.session_state:
+        st.session_state.upload_success = False
+    
+    # Reset file uploader by incrementing key on success
+    if 'upload_counter' not in st.session_state:
+        st.session_state.upload_counter = 0
+
     col1, col2 = st.columns([2, 1])
 
     with col1:
@@ -15,12 +23,12 @@ def render_upload_page():
             "Choose receipt image",
             type=["jpg", "jpeg", "png"],
             help="Upload a photo of your receipt",
-            key="single_upload_file",
+            key=f"single_upload_file_{st.session_state.upload_counter}",
         )
 
     with col2:
         purchase_date = st.date_input(
-            "Purchase Date", value=date.today(), max_value=date.today(), key="single_upload_date"
+            "Purchase Date", value=date.today(), max_value=date.today(), key=f"single_upload_date_{st.session_state.upload_counter}"
         )
 
     if upload_file is not None:
@@ -62,6 +70,10 @@ def render_upload_page():
                         # Optional: Show JSON in expander for debugging
                         with st.expander("🔍 View raw data"):
                             st.json(receipt)
+                        
+                        # Reset form by incrementing counter
+                        st.session_state.upload_counter += 1
+                        st.rerun()
                     else:
                         st.error(f"❌ Upload failed: {response.text}")
                 except requests.exceptions.ConnectionError:

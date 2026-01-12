@@ -8,6 +8,10 @@ def render_bulk_upload_page():
     """Render the bulk upload receipts page"""
     st.subheader("Bulk Upload Receipts")
 
+    # Initialize session state for upload tracking
+    if 'bulk_upload_counter' not in st.session_state:
+        st.session_state.bulk_upload_counter = 0
+
     col1, col2 = st.columns([2, 1])
 
     with col1:
@@ -16,12 +20,12 @@ def render_bulk_upload_page():
             type=["jpg", "jpeg", "png"],
             help="Upload multiple photos of your receipts",
             accept_multiple_files=True,
-            key="bulk_upload_files",
+            key=f"bulk_upload_files_{st.session_state.bulk_upload_counter}",
         )
 
     with col2:
         purchase_date = st.date_input(
-            "Purchase Date", value=date.today(), max_value=date.today(), key="bulk_upload_date"
+            "Purchase Date", value=date.today(), max_value=date.today(), key=f"bulk_upload_date_{st.session_state.bulk_upload_counter}"
         )
 
     if upload_files:
@@ -71,6 +75,10 @@ def render_bulk_upload_page():
                         # Optional: Show raw response
                         with st.expander("🔍 View raw response"):
                             st.json(result)
+                        
+                        # Reset form by incrementing counter
+                        st.session_state.bulk_upload_counter += 1
+                        st.rerun()
                     else:
                         st.error(f"❌ Upload failed: {response.text}")
                 except requests.exceptions.ConnectionError:
