@@ -413,7 +413,196 @@ ON CONFLICT DO NOTHING;
 
 ---
 
-## Related Documentation
+## Common Query Patterns
+
+### 1. Get Top 10 Items Expiring Soon
+**Use Case:** Find items in pantry that need to be used first to minimize waste
+
+```sql
+-- Top 10 items expiring soonest (all categories)
+SELECT 
+  pi.id,
+  pi.item_name,
+  pi.quantity_current,
+  pi.quantity_unit,
+  pi.expiration_date,
+  pi.location,
+  ic.name AS category_name,
+  EXTRACT(DAY FROM pi.expiration_date - CURRENT_DATE) AS days_until_expiry
+FROM pantry_items pi
+LEFT JOIN item_categories ic ON pi.category_id = ic.id
+WHERE pi.user_id = 1
+  AND pi.status = 'available'
+  AND pi.expiration_date IS NOT NULL
+  AND pi.expiration_date >= CURRENT_DATE  -- Only future/today, exclude already expired
+ORDER BY pi.expiration_date ASC
+LIMIT 10;
+```
+
+**Sample Result:**
+```
+| item_name      | quantity | unit | expiration_date | location | category_name | days_until_expiry |
+|----------------|----------|------|-----------------|----------|---------------|-------------------|
+| Pork Chops     | 1.2      | lbs  | 2026-01-13      | fridge   | Meat          | 1                 |
+| Milk 2%        | 0.5      | gal  | 2026-01-15      | fridge   | Dairy         | 3                 |
+| Chicken Breast | 2.0      | lbs  | 2026-01-16      | fridge   | Meat          | 4                 |
+| Spinach        | 0.3      | lbs  | 2026-01-17      | fridge   | Vegetables    | 5                 |
+| Yogurt         | 4.0      | oz   | 2026-01-20      | fridge   | Dairy         | 8                 |
+```
+
+---
+
+### 2. Get Top 5 Items Expiring Soon by Category
+**Use Case:** Focus on specific category (e.g., only show expiring vegetables)
+
+```sql
+-- Top 5 vegetables expiring soon
+SELECT 
+  pi.item_name,
+  pi.quantity_current,
+  pi.expiration_date,
+  pi.location
+FROM pantry_items pi
+JOIN item_categories ic ON pi.category_id = ic.id
+WHERE pi.user_id = 1
+  AND pi.status = 'available'
+  AND ic.name = 'Vegetables'  -- or ic.id = 1
+  AND pi.expiration_date IS NOT NULL
+  AND pi.expiration_date >= CURRENT_DATE
+ORDER BY pi.expiration_date ASC
+LIMIT 5;
+```
+
+---
+
+### 3. Get Items Expiring Within Next 7 Days
+**Use Case:** Weekly meal planning - what needs to be used this week?
+
+```sql
+SELECT 
+  pi.item_name,
+  pi.quantity_current,
+  pi.quantity_unit,
+  pi.expiration_date,
+  ic.name AS category_name,
+  CASE 
+    WHEN pi.expiration_date = CURRENT_DATE THEN 'Expires Today!'
+    WHEN pi.expiration_date < CURRENT_DATE + INTERVAL '3 days' THEN 'Urgent'
+    ELSE 'Use Soon'
+  END AS urgency
+FROM pantry_items pi
+LEFT JOIN item_categories ic ON pi.category_id = ic.id
+WHERE pi.user_id = 1
+  AND pi.status = 'available'
+  AND pi.expiration_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+ORDER BY pi.expiration_date ASC;
+```
+
+---
+
+### 4. Group Expiring Items by Category
+**Use Case:** Summary view - how many items expiring per category
+
+```sql
+SELECT 
+  ic.name AS category_name,
+  COUNT(*) AS item_count,
+  MIN(pi.expiration_date) AS earliest_expiry
+FROM pantry_items pi
+JOIN item_categories ic ON pi.category_id = ic.id
+WHERE pi.user_id = 1
+  AND pi.status = 'available'
+  AND pi.expiration_date IS NOT NULL
+  AND pi.expiration_date >= CURRENT_DATE
+GROUP BY ic.name
+ORDER BY earliest_expiry ASC;
+```
+
+**Sample Result:**
+```
+| category_name | item_count | earliest_expiry |
+|---------------|------------|-----------------|
+| Meat          | 3          | 2026-01-13      |
+| Dairy         | 2          | 2026-01-15      |
+| Vegetables    | 4          | 2026-01-17      |
+| Fruits        | 1          | 2026-01-22      |
+```
+
+---
+
+### 5. Find Duplicate Items with Different Expiry Dates
+**Use Case:** User bought same item multiple times - show all batches ordered by expiry
+
+```sql
+-- Example: Show all pork purchases ordered by expiration
+SELECT 
+  pi.id,
+  pi.item_name,
+  pi.quantity_current,
+  pi.expiration_date,
+  ri.purchase_date AS purchased_on,
+  r.merchant_name
+FROM pantry_items pi
+LEFT JOIN receipt_items ri ON pi.receipt_item_id = ri.id
+LEFT JOIN receipts r ON ri.receipt_id = r.id
+WHERE pi.user_id = 1
+  AND pi.item_name ILIKE '%pork%'  -- case-insensitive search
+  AND pi.status = 'available'
+ORDER BY pi.expiration_date ASC;
+```
+
+**Sample Result:**
+```
+| id | item_name   | quantity | expiration_date | purchased_on | merchant_name |
+|----|-------------|----------|-----------------|--------------|---------------|
+| 12 | Pork Chops  | 1.2      | 2026-01-13      | 2026-01-01   | Trader Joe's  |
+| 45 | Pork Chops  | 0.8      | 2026-01-20      | 2026-01-05   | Whole Foods   |
+```
+→ **Insight:** Use ID 12 first (expires Jan 13), then ID 45 (expires Jan 20)
+
+---
+
+### 6. Performance Optimization Tips
+
+For faster queries on expiration tracking:
+
+```sql
+-- Create composite index for common query pattern
+CREATE INDEX idx_pantry_expiry_lookup 
+ON pantry_items(user_id, status, expiration_date) 
+WHERE expiration_date IS NOT NULL;
+
+-- This index helps queries that filter by:
+-- - user_id (isolate user's data)
+-- - status = 'available' (only active items)
+-- - ORDER BY expiration_date
+```
+
+**Query Performance:**
+- Without index: ~50-100ms on 10,000 rows
+- With index: ~2-5ms on 10,000 rows
+
+---
+
+## API Endpoint Examples (Future)
+
+Based on these queries, you might want these endpoints in W04+:
+
+```
+GET /api/pantry/expiring-soon?limit=10
+→ Returns top 10 items expiring soonest
+
+GET /api/pantry/expiring-soon?category=vegetables&limit=5
+→ Returns top 5 vegetables expiring soon
+
+GET /api/pantry/expiring-this-week
+→ Returns all items expiring in next 7 days
+
+GET /api/pantry/items/duplicates?item_name=pork
+→ Returns all batches of pork ordered by expiration
+```
+
+---
 - [API Contracts](./api-contracts.md) - API endpoints using these tables
 - [Architecture](./architecture.md) - Overall system design
 - [W02 Plan](./plans/2026-W02-plan.md) - OCR schema extensions
