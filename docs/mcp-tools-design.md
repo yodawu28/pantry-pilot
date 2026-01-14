@@ -373,74 +373,7 @@ response = requests.get(
 
 ---
 
-## Tool 3: `save_receipt_to_database`
-
-**Purpose:** Persist extracted receipt data to PostgreSQL
-
-**Input Schema:**
-```json
-{
-  "receipt_id": "integer",
-  "metadata": {
-    "merchant_name": "string",
-    "purchase_date": "YYYY-MM-DD",
-    "total_amount": "decimal",
-    "currency": "string"
-  },
-  "items": [
-    {
-      "item_name": "string",
-      "quantity": "decimal | null",
-      "unit_price": "decimal | null",
-      "total_price": "decimal",
-      "line_number": "integer"
-    }
-  ]
-}
-```
-
-**Output Schema:**
-```json
-{
-  "success": "boolean",
-  "receipt_id": "integer",
-  "items_saved": "integer",
-  "errors": "array of strings"
-}
-```
-
-**Example:**
-```json
-Input: {
-  "receipt_id": 123,
-  "metadata": {
-    "merchant_name": "Whole Foods Market",
-    "purchase_date": "2026-01-10",
-    "total_amount": 45.67,
-    "currency": "USD"
-  },
-  "items": [
-    {
-      "item_name": "Chicken Breast",
-      "quantity": 2.0,
-      "total_price": 12.45,
-      "category_id": 2,
-      "expiration_date": "2026-01-17"
-    }
-  ]
-}
-
-Output: {
-  "success": true,
-  "receipt_id": 123,
-  "items_saved": 1,
-  "errors": []
-}
-```
-
----
-
-## Tool 4: `validate_extraction`
+## Tool 3: `validate_extraction`
 
 **Purpose:** Validate extracted data against business rules
 
@@ -495,29 +428,32 @@ Output: {
 
 ## Agent Workflow
 
-**Simplified Receipt Extraction Flow:**
+**Pure Extraction Flow:**
 
 ```
-1. User uploads receipt image
+1. API receives receipt image from user
    ↓
-2. Vision preprocessing (optional: enhance, rotate, crop)
+2. API calls Agent with image
    ↓
-3. Agent receives image + context
-   ↓
-4. Agent calls: extract_receipt_metadata
+3. Agent calls: extract_receipt_metadata
    ← Returns: merchant, date, total
    ↓
-5. Agent calls: extract_line_items
+4. Agent calls: extract_line_items
    ← Returns: list of items with prices
    ↓
-6. Agent calls: validate_extraction
+5. Agent calls: validate_extraction
    ← Returns: validation result
    ↓
-7. If valid:
-   Agent calls: save_receipt_to_database
-   ← Returns: success/failure
+6. Agent returns JSON response to API:
+   {
+     "metadata": {...},
+     "items": [...],
+     "validation": {...}
+   }
    ↓
-8. Agent returns final result to user
+7. API independently saves to database
+   ↓
+8. API returns result to frontend
    (User can review/edit in UI)
 ```
 
@@ -547,6 +483,109 @@ Output: {
 - Database errors: retry with exponential backoff
 - Network errors: queue for later processing
 - Invalid input: return clear error message to agent
+
+---
+
+## Agent Final Output
+
+The agent returns a **structured JSON response** to the API, which then handles database persistence independently.
+
+**Response Schema:**
+```json
+{
+  "status": "success | failed",
+  "metadata": {
+    "merchant_name": "string | null",
+    "purchase_date": "YYYY-MM-DD | null",
+    "total_amount": "decimal | null",
+    "currency": "string",
+    "confidence": "float (0.0-1.0)"
+  },
+  "items": [
+    {
+      "item_name": "string",
+      "quantity": "decimal | null",
+      "unit_price": "decimal | null",
+      "total_price": "decimal",
+      "line_number": "integer",
+      "confidence": "float (0.0-1.0)"
+    }
+  ],
+  "validation": {
+    "valid": "boolean",
+    "warnings": ["array of strings"],
+    "errors": ["array of strings"]
+  },
+  "processing_time_ms": "integer",
+  "agent_version": "string"
+}
+```
+
+**Example Success Response:**
+```json
+{
+  "status": "success",
+  "metadata": {
+    "merchant_name": "Whole Foods Market",
+    "purchase_date": "2026-01-10",
+    "total_amount": 45.67,
+    "currency": "USD",
+    "confidence": 0.92
+  },
+  "items": [
+    {
+      "item_name": "Organic Bananas",
+      "quantity": 1.5,
+      "unit_price": 1.50,
+      "total_price": 2.25,
+      "line_number": 1,
+      "confidence": 0.95
+    },
+    {
+      "item_name": "Chicken Breast",
+      "quantity": null,
+      "unit_price": null,
+      "total_price": 12.45,
+      "line_number": 2,
+      "confidence": 0.88
+    }
+  ],
+  "validation": {
+    "valid": true,
+    "warnings": ["Total amount mismatch: sum(items)=14.70, total=45.67"],
+    "errors": []
+  },
+  "processing_time_ms": 3247,
+  "agent_version": "gemma-3n-v1.0"
+}
+```
+
+**Example Failure Response:**
+```json
+{
+  "status": "failed",
+  "metadata": null,
+  "items": [],
+  "validation": {
+    "valid": false,
+    "warnings": [],
+    "errors": ["No text detected in image", "Receipt too blurry"]
+  },
+  "processing_time_ms": 1532,
+  "agent_version": "gemma-3n-v1.0"
+}
+```
+
+**API Workflow After Receiving Agent Response:**
+1. Receive JSON from agent
+2. If `status == "success"` and `validation.valid == true`:
+   - Save metadata to `receipts` table
+   - Save items to `receipt_items` table (future)
+   - Update `ocr_status` to 'completed'
+3. If failed or invalid:
+   - Update `ocr_status` to 'failed'
+   - Store error messages
+4. Return response to frontend
 
 ---
 
