@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import List
 from sqlalchemy import (
     Integer,
     String,
@@ -9,9 +10,10 @@ from sqlalchemy import (
     Numeric,
     Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.database import Base
+from app.models.receipt_item import ReceiptItem
 from shared.types import OCRStatus
 
 
@@ -70,6 +72,9 @@ class Receipt(Base):
         DateTime(timezone=True),
         onupdate=func.now(),
     )
+
+    # Relationships
+    items: Mapped[List["ReceiptItem"]] = relationship("ReceiptItem", back_populates="receipt")
 
 
 def create_receipt(user_id: int, image_path: str, purchase_date: date) -> Receipt:

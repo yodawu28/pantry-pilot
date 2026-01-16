@@ -2,6 +2,7 @@ from typing import List, Optional
 from app.models.receipts import Receipt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
 
 
 class ReceiptRepository:
@@ -26,6 +27,13 @@ class ReceiptRepository:
     async def get_by_id(self, receipt_id: int) -> Receipt | None:
         result = await self.db.execute(select(Receipt).where(Receipt.id == receipt_id))
 
+        return result.scalar_one_or_none()
+
+    async def get_by_id_with_items(self, receipt_id: int) -> Receipt | None:
+        """Get receipt by ID with line items loaded"""
+        result = await self.db.execute(
+            select(Receipt).options(selectinload(Receipt.items)).where(Receipt.id == receipt_id)
+        )
         return result.scalar_one_or_none()
 
     async def get_all(self, params: dict) -> List[Receipt]:

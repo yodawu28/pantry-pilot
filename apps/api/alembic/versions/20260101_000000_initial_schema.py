@@ -6,7 +6,6 @@ Create Date: 2026-01-01 00:00:00.000000
 
 """
 
-
 # revision identifiers, used by Alembic.
 revision = "001_initial_schema"
 down_revision = None

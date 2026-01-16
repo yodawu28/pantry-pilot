@@ -9,6 +9,7 @@ from app.routers.response.receipt import (
     ReceiptResponse,
     ReceiptsResponse,
     ReceiptsUploadResponse,
+    LineItemResponse,
 )
 from app.services.minio_service import MinioService
 from app.services.ocr_service import OCRService
@@ -97,6 +98,10 @@ async def list_receipts(
             status=receipt.status,
             ocr_status=receipt.ocr_status,
             created_at=receipt.created_at.isoformat() if receipt.created_at else "",
+            merchant_name=receipt.merchant_name,
+            total_amount=str(receipt.total_amount) if receipt.total_amount else None,
+            currency=receipt.currency,
+            ocr_text=receipt.ocr_text,
         )
         for receipt in receipts
     ]
@@ -111,16 +116,33 @@ async def list_receipts(
 @router.get("/{id}", response_model=ReceiptResponse)
 async def get_receipt(id: int, db: AsyncSession = Depends(get_db)):
     """
-    Get receipt by id
+    Get receipt by id with line items
 
     - **id**: Id of receipt
     """
 
     receipt_service = ReceiptService(db)
-    receipt = await receipt_service.get(id)
+    receipt = await receipt_service.get_with_items(id)
 
     if not receipt:
         raise HTTPException(status_code=404, detail=f"Receipt with id {id} not found")
+
+    # Build items list if available
+    items_list = None
+    if receipt.ocr_status == "completed" and hasattr(receipt, "items") and receipt.items:
+        items_list = [
+            LineItemResponse(
+                id=item.id,
+                receipt_id=item.receipt_id,
+                item_name=item.item_name,
+                quantity=float(str(item.quantity)) if item.quantity is not None else 0.0,
+                unit_price=str(item.unit_price) if item.unit_price is not None else "0",
+                total_price=str(item.total_price) if item.total_price is not None else "0",
+                currency=str(item.currency) if item.currency is not None else "VND",
+                confidence=float(str(item.confidence)) if item.confidence is not None else None,
+            )
+            for item in receipt.items
+        ]
 
     return ReceiptResponse(
         id=receipt.id,
@@ -130,6 +152,11 @@ async def get_receipt(id: int, db: AsyncSession = Depends(get_db)):
         status=receipt.status,
         ocr_status=receipt.ocr_status,
         created_at=receipt.created_at.isoformat() if receipt.created_at else "",
+        merchant_name=receipt.merchant_name,
+        total_amount=str(receipt.total_amount) if receipt.total_amount else None,
+        currency=receipt.currency,
+        ocr_text=receipt.ocr_text,
+        items=items_list,
     )
 
 

@@ -1,8 +1,13 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, DateTime
-from sqlalchemy.orm import Mapped, mapped_column
+from decimal import Decimal
+from typing import TYPE_CHECKING
+from sqlalchemy import ForeignKey, String, Numeric, DateTime
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.receipts import Receipt
 
 
 class ReceiptItem(Base):
@@ -10,22 +15,24 @@ class ReceiptItem(Base):
 
     __tablename__ = "receipt_items"
 
-    id = Column(Integer, primary_key=True, index=True)
-    receipt_id = Column(
-        Integer, ForeignKey("receipts.id", ondelete="CASCADE"), nullable=False, index=True
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    receipt_id: Mapped[int] = mapped_column(
+        ForeignKey("receipts.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # Item details
-    item_name = Column(String(200), nullable=False)
-    quantity = Column(
+    item_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(
         Numeric(10, 3), default=1.0, nullable=False
     )  # Changed to Numeric to support 0.246
-    unit_price = Column(Numeric(10, 2), nullable=True)
-    total_price = Column(Numeric(10, 2), nullable=False)
-    currency = Column(String(5), default="VND", nullable=False)  # Currency for this item
+    unit_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    total_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(
+        String(5), default="VND", nullable=False
+    )  # Currency for this item
 
     # Extraction metadata
-    confidence = Column(Numeric(3, 2), nullable=True)  # 0.00-1.00
+    confidence: Mapped[Decimal | None] = mapped_column(Numeric(3, 2), nullable=True)  # 0.00-1.00
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -38,6 +45,9 @@ class ReceiptItem(Base):
         DateTime(timezone=True),
         onupdate=func.now(),
     )
+
+    # Relationships
+    receipt: Mapped["Receipt"] = relationship("Receipt", back_populates="items")
 
     def __repr__(self):
         return f"<ReceiptItem(id={self.id}, name={self.item_name}, price={self.total_price})>"

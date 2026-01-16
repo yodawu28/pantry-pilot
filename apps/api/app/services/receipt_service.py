@@ -52,3 +52,7 @@ class ReceiptService:
     async def get(self, id: int) -> Receipt | None:
         """Get receipt by Id"""
         return await self.receipt_repository.get_by_id(id)
+
+    async def get_with_items(self, id: int) -> Receipt | None:
+        """Get receipt by Id with line items"""
+        return await self.receipt_repository.get_by_id_with_items(id)

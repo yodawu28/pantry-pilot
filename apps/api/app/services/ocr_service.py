@@ -103,6 +103,7 @@ class OCRService:
         if metadata.get("purchase_date"):
             try:
                 from datetime import datetime
+
                 receipt.purchase_date = datetime.fromisoformat(metadata["purchase_date"])
             except Exception:
                 pass
