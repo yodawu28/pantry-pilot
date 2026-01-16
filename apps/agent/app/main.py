@@ -1,4 +1,5 @@
 """Agent API server - Main entry point."""
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -15,7 +16,7 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting Pantry Pilot Agent...")
     print(f"✅ Agent initialized with model: {settings.openai_model}")
     print(f"✅ MCP Server URL: {settings.mcp_url}")
-    
+
     # Verify OpenAI API key is set
     if not settings.openai_api_key or settings.openai_api_key == "your-api-key-here":
         print("⚠️  WARNING: OPENAI_API_KEY is not set or using placeholder value!")

@@ -10,14 +10,12 @@ from app.schemas import ExtractionRequest, ExtractionResponse
 from app.vision_service import VisionService
 from app.prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 from shared.types import (
-    ExtractionResult,
     ReceiptMetadata,
     LineItem,
     ValidationResult,
     ImageData,
     ReceiptContext,
 )
-
 
 
 class ReceiptAgent:
@@ -55,10 +53,10 @@ class ReceiptAgent:
             # Step 1: Call MCP OCR tool to extract raw text
             print(f"[Agent] Step 1: Calling EasyOCR via MCP for receipt {request.receipt_id}")
             ocr_result = await self._call_mcp_ocr(request.image_path)
-            
+
             if not ocr_result.get("success"):
                 raise Exception(f"OCR failed: {ocr_result.get('error', 'Unknown error')}")
-            
+
             raw_text = ocr_result.get("raw_text", "")
             print(f"[Agent] ✓ OCR extracted {len(raw_text)} characters")
             print(f"[Agent] Raw OCR preview: {raw_text[:200]}...")
@@ -66,7 +64,7 @@ class ReceiptAgent:
             # Step 2: Get image from storage via MCP
             print(f"[Agent] Step 2: Fetching image: {request.image_path}")
             image_data = await self._call_mcp_get_image(request.image_path)
-            
+
             # Decode base64 image
             image_bytes = base64.b64decode(image_data.image_base64)
 
@@ -87,20 +85,22 @@ class ReceiptAgent:
                 processed_bytes,
                 raw_ocr_text=raw_text,  # NEW: Pass OCR text
                 receipt_id=request.receipt_id,
-                context=context_str
+                context=context_str,
             )
-            
+
             # Step 5: Parse Gemma's JSON response
             metadata = ReceiptMetadata(**extraction_data["metadata"])
             items = [LineItem(**item) for item in extraction_data.get("items", [])]
-            raw_text_final = extraction_data.get("raw_text") or raw_text  # Use OCR text if model doesn't provide
-            
+            raw_text_final = (
+                extraction_data.get("raw_text") or raw_text
+            )  # Use OCR text if model doesn't provide
+
             # Step 6: Validate extraction via MCP
             print("[Agent] Validating extraction...")
             validation = await self._call_mcp_validate(metadata, items)
-            
+
             processing_time_ms = int((time.time() - start_time) * 1000)
-            
+
             return ExtractionResponse(
                 receipt_id=request.receipt_id,
                 metadata=metadata,
@@ -109,7 +109,7 @@ class ReceiptAgent:
                 validation=validation,
                 processing_time_ms=processing_time_ms,
                 success=validation.valid,
-                error_message=None if validation.valid else ", ".join(validation.errors)
+                error_message=None if validation.valid else ", ".join(validation.errors),
             )
 
         except Exception as e:
@@ -122,14 +122,11 @@ class ReceiptAgent:
                 items=[],
                 raw_text=None,
                 validation=ValidationResult(
-                    valid=False,
-                    errors=[str(e)],
-                    warnings=[],
-                    confidence=0.0
+                    valid=False, errors=[str(e)], warnings=[], confidence=0.0
                 ),
                 processing_time_ms=processing_time_ms,
                 success=False,
-                error_message=f"Agent extraction failed: {str(e)}"
+                error_message=f"Agent extraction failed: {str(e)}",
             )
 
     async def _call_gemma_vision(
@@ -137,137 +134,145 @@ class ReceiptAgent:
         image_bytes: bytes,
         raw_ocr_text: str,  # NEW: OCR extracted text
         receipt_id: int,
-        context: str
+        context: str,
     ) -> dict:
         """
         Call Gemma-3 model via Ollama to extract receipt data.
-        
+
         NEW: Uses EasyOCR text + image for better accuracy
         - OCR text provides accurate numbers
         - Image provides structure/layout understanding
-        
+
         Args:
             image_bytes: Preprocessed image bytes
             raw_ocr_text: Raw text extracted by EasyOCR
             receipt_id: Receipt ID for logging
             context: Formatted context string
-            
+
         Returns:
             Extracted data as dict with metadata, items, and raw_text
         """
         response_text = ""  # Initialize to avoid unbound variable error
         try:
             # Convert image bytes to base64 for OpenAI
-            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-            print(f"[Agent] Image encoded: {len(image_base64)} base64 chars ({len(image_bytes)} bytes)")
-            
+            image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+            print(
+                f"[Agent] Image encoded: {len(image_base64)} base64 chars ({len(image_bytes)} bytes)"
+            )
+
             # Format the prompt with context AND OCR text
             user_prompt = USER_PROMPT_TEMPLATE.format(
                 receipt_id=receipt_id,
                 image_path="<provided>",
                 user_id="<current>",
                 context=context,
-                raw_ocr_text=raw_ocr_text
+                raw_ocr_text=raw_ocr_text,
             )
-            
+
             print(f"[Agent] Calling OpenAI with model: {settings.openai_model}")
             print(f"[Agent] Sending image to vision model for receipt {receipt_id}")
-            
+
             # Call OpenAI
             response_text = await self._call_openai(user_prompt, image_base64)
-            
+
             print(f"[Agent] Model response length: {len(response_text)} chars")
             print(f"[Agent] Raw response: {response_text[:500]}")
-            
+
             # Parse JSON from response (handle markdown code blocks if present)
             response_text = response_text.strip()
-            if response_text.startswith('```json'):
+            if response_text.startswith("```json"):
                 response_text = response_text[7:]  # Remove ```json
-            if response_text.startswith('```'):
+            if response_text.startswith("```"):
                 response_text = response_text[3:]  # Remove ```
-            if response_text.endswith('```'):
+            if response_text.endswith("```"):
                 response_text = response_text[:-3]  # Remove trailing ```
             response_text = response_text.strip()
-            
+
             # Fix common typo from model: "purcahse_date" → "purchase_date"
             response_text = response_text.replace('"purcahse_date"', '"purchase_date"')
-            
+
             # Fix incomplete JSON (model response may be truncated)
-            if not response_text.endswith('}'):
+            if not response_text.endswith("}"):
                 # Try to close incomplete JSON
                 # Count braces to see how many closing braces we need
-                open_braces = response_text.count('{')
-                close_braces = response_text.count('}')
-                
+                open_braces = response_text.count("{")
+                close_braces = response_text.count("}")
+
                 # Close any open strings
                 if response_text.count('"') % 2 == 1:
                     response_text += '"'
-                
+
                 # Close objects
                 for _ in range(open_braces - close_braces):
-                    response_text += '\n}'
-                    
-                print(f"[Agent] ⚠️ Fixed incomplete JSON - added {open_braces - close_braces} closing braces")
-            
+                    response_text += "\n}"
+
+                print(
+                    f"[Agent] ⚠️ Fixed incomplete JSON - added {open_braces - close_braces} closing braces"
+                )
+
             # Parse JSON
             extraction_data = json.loads(response_text)
-            
+
             # Normalize date format from DD/MM/YYYY to YYYY-MM-DD
-            metadata_info = extraction_data.get('metadata', {})
-            if 'purchase_date' in metadata_info:
-                metadata_info['purchase_date'] = self._normalize_date(metadata_info['purchase_date'])
-            
+            metadata_info = extraction_data.get("metadata", {})
+            if "purchase_date" in metadata_info:
+                metadata_info["purchase_date"] = self._normalize_date(
+                    metadata_info["purchase_date"]
+                )
+
             # Log extraction results for debugging
-            print(f"[Agent] ✓ Extraction complete:")
+            print("[Agent] ✓ Extraction complete:")
             print(f"  - Merchant: {metadata_info.get('merchant_name', 'N/A')}")
             print(f"  - Date: {metadata_info.get('purchase_date', 'N/A')}")
-            print(f"  - Total: {metadata_info.get('total_amount', 'N/A')} {metadata_info.get('currency', 'N/A')}")
+            print(
+                f"  - Total: {metadata_info.get('total_amount', 'N/A')} {metadata_info.get('currency', 'N/A')}"
+            )
             print(f"  - Items: {len(extraction_data.get('items', []))} extracted")
             print(f"  - Confidence: {metadata_info.get('confidence', 0)}")
-            if extraction_data.get('raw_text'):
+            if extraction_data.get("raw_text"):
                 print(f"  - Raw text preview: {extraction_data['raw_text'][:200]}...")
-            
+
             return extraction_data
-            
+
         except json.JSONDecodeError as e:
-            response_preview = response_text[:1000] if response_text else 'N/A'
+            response_preview = response_text[:1000] if response_text else "N/A"
             print(f"[Agent] ✗ Failed to parse Gemma response as JSON: {e}")
             print(f"[Agent] Full response text: {response_preview}")
-            print(f"[Agent] ⚠️ Returning mock data - check if model is vision-capable!")
+            print("[Agent] ⚠️ Returning mock data - check if model is vision-capable!")
             # Return mock data as fallback
             return self._get_mock_extraction()
         except Exception as e:
             print(f"[Agent] Gemma vision call failed: {e}")
             return self._get_mock_extraction()
-    
+
     def _normalize_date(self, date_str: str) -> str:
         """
         Normalize date from various formats to YYYY-MM-DD.
         Handles: DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, etc.
         """
         if not date_str:
-            return datetime.now().strftime('%Y-%m-%d')
-        
+            return datetime.now().strftime("%Y-%m-%d")
+
         # Try common formats
         formats = [
-            '%d/%m/%Y',  # Vietnamese: 29/10/2016
-            '%d-%m-%Y',  # Alternative: 29-10-2016
-            '%Y-%m-%d',  # ISO: 2016-10-29 (already correct)
-            '%m/%d/%Y',  # US: 10/29/2016
-            '%d.%m.%Y',  # European: 29.10.2016
+            "%d/%m/%Y",  # Vietnamese: 29/10/2016
+            "%d-%m-%Y",  # Alternative: 29-10-2016
+            "%Y-%m-%d",  # ISO: 2016-10-29 (already correct)
+            "%m/%d/%Y",  # US: 10/29/2016
+            "%d.%m.%Y",  # European: 29.10.2016
         ]
-        
+
         for fmt in formats:
             try:
                 parsed = datetime.strptime(date_str.strip(), fmt)
-                return parsed.strftime('%Y-%m-%d')
+                return parsed.strftime("%Y-%m-%d")
             except ValueError:
                 continue
-        
+
         # If all parsing fails, return original and let Pydantic handle it
         print(f"[Agent] ⚠️ Could not parse date '{date_str}', using current date")
-        return datetime.now().strftime('%Y-%m-%d')
-    
+        return datetime.now().strftime("%Y-%m-%d")
+
     def _get_mock_extraction(self) -> dict:
         """Fallback mock extraction data for development/testing."""
         return {
@@ -276,17 +281,16 @@ class ReceiptAgent:
                 "purchase_date": "2026-01-15",
                 "total_amount": "0.00",
                 "currency": "USD",
-                "confidence": 0.1
+                "confidence": 0.1,
             },
             "items": [],
-            "raw_text": "Mock extraction - Gemma model unavailable"
+            "raw_text": "Mock extraction - Gemma model unavailable",
         }
 
     async def _call_mcp_ocr(self, image_path: str) -> dict:
         """Call MCP OCR tool to extract raw text using EasyOCR."""
         response = await self.client.post(
-            f"{self.mcp_url}/tools/ocr-text",
-            json={"image_path": image_path}
+            f"{self.mcp_url}/tools/ocr-text", json={"image_path": image_path}
         )
         response.raise_for_status()
         return response.json()
@@ -294,18 +298,15 @@ class ReceiptAgent:
     async def _call_mcp_get_image(self, image_path: str) -> ImageData:
         """Call MCP tool to fetch image from storage."""
         response = await self.client.post(
-            f"{self.mcp_url}/tools/get-image",
-            json={"image_path": image_path}
+            f"{self.mcp_url}/tools/get-image", json={"image_path": image_path}
         )
         response.raise_for_status()
         data = response.json()
-        
+
         return ImageData(**data)
-    
+
     async def _call_mcp_validate(
-        self,
-        metadata: ReceiptMetadata,
-        items: list[LineItem]
+        self, metadata: ReceiptMetadata, items: list[LineItem]
     ) -> ValidationResult:
         """Call MCP validation tool."""
         try:
@@ -313,8 +314,8 @@ class ReceiptAgent:
                 f"{self.mcp_url}/tools/validate",
                 json={
                     "metadata": metadata.model_dump(mode="json"),
-                    "items": [item.model_dump(mode="json") for item in items]
-                }
+                    "items": [item.model_dump(mode="json") for item in items],
+                },
             )
             response.raise_for_status()
             return ValidationResult(**response.json())
@@ -325,34 +326,32 @@ class ReceiptAgent:
                 valid=False,
                 errors=[f"Validation service error: {str(e)}"],
                 warnings=[],
-                confidence=0.0
+                confidence=0.0,
             )
-    
+
     async def _call_mcp_get_context(
-        self,
-        receipt_id: int,
-        user_id: int
+        self, receipt_id: int, user_id: int
     ) -> Optional[ReceiptContext]:
         """Call MCP tool to get receipt context."""
         try:
             response = await self.client.post(
                 f"{self.mcp_url}/tools/get-context",
-                json={"receipt_id": receipt_id, "user_id": user_id}
+                json={"receipt_id": receipt_id, "user_id": user_id},
             )
             response.raise_for_status()
             return ReceiptContext(**response.json())
         except Exception as e:
             print(f"[Agent] Failed to get context: {e}")
             return None
-    
+
     def _format_context(self, context: Optional[ReceiptContext]) -> str:
         """Format context for prompt."""
         if not context:
             return "No previous purchase history available."
-        
+
         avg_spending = f"${context.avg_total:.2f}" if context.avg_total else "N/A"
-        merchants = ', '.join(context.merchant_history[:3]) if context.merchant_history else 'None'
-        
+        merchants = ", ".join(context.merchant_history[:3]) if context.merchant_history else "None"
+
         return f"""User has {context.previous_receipts_count} previous receipts.
 Recent merchants: {merchants}
 Average spending: {avg_spending}"""
@@ -363,25 +362,20 @@ Average spending: {avg_spending}"""
             response = self.openai_client.chat.completions.create(
                 model=settings.openai_model,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": SYSTEM_PROMPT
-                    },
+                    {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
                         "content": [
                             {"type": "text", "text": user_prompt},
                             {
                                 "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_base64}"
-                                }
-                            }
-                        ]
-                    }
+                                "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"},
+                            },
+                        ],
+                    },
                 ],
                 temperature=settings.openai_temperature,
-                max_tokens=settings.openai_max_tokens
+                max_tokens=settings.openai_max_tokens,
             )
             return response.choices[0].message.content or ""
         except Exception as e:

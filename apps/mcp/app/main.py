@@ -1,4 +1,5 @@
 """MCP Server API - Main entry point."""
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -82,6 +83,7 @@ async def tool_get_image(request: GetImageRequest):
         return result
     except Exception as e:
         import traceback
+
         print(f"[MCP] get-image ERROR: {str(e)}")
         traceback.print_exc()
         raise HTTPException(500, detail=f"Failed to get image: {str(e)}")
@@ -95,16 +97,19 @@ async def tool_validate(request: ValidateRequest):
     Checks business rules and data quality.
     """
     try:
-        print(f"[MCP] validate called")
+        print("[MCP] validate called")
         print(f"[MCP] metadata: {request.metadata}")
         print(f"[MCP] items count: {len(request.items)}")
         for idx, item in enumerate(request.items):
             print(f"[MCP] item {idx}: {item}")
         result = await validate_extraction(request.metadata, request.items)
-        print(f"[MCP] validate success: valid={result.valid}, errors={len(result.errors)}, warnings={len(result.warnings)}")
+        print(
+            f"[MCP] validate success: valid={result.valid}, errors={len(result.errors)}, warnings={len(result.warnings)}"
+        )
         return result
     except Exception as e:
         import traceback
+
         print(f"[MCP] validate ERROR: {str(e)}")
         traceback.print_exc()
         raise HTTPException(500, detail=f"Validation failed: {str(e)}")
@@ -122,11 +127,12 @@ async def tool_get_context(request: GetContextRequest):
     except Exception as e:
         raise HTTPException(500, detail=f"Failed to get context: {str(e)}")
 
+
 @app.post("/tools/ocr-text")
 async def tool_ocr_text(request: GetImageRequest):
     """
     MCP Tool: Extract raw text from receipt using EasyOCR.
-    
+
     Returns raw text and line-by-line OCR results with confidence scores.
     """
     try:
@@ -136,10 +142,10 @@ async def tool_ocr_text(request: GetImageRequest):
         return result
     except Exception as e:
         import traceback
+
         print(f"[MCP] ocr-text ERROR: {str(e)}")
         traceback.print_exc()
         raise HTTPException(500, detail=f"OCR extraction failed: {str(e)}")
-
 
 
 # Run with: uvicorn app.main:app --reload

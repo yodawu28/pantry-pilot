@@ -1,4 +1,5 @@
 """MCP Server API."""
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -19,10 +20,10 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting Pantry Pilot MCP Server...")
     print(f"✅ MinIO Endpoint: {settings.minio_endpoint}")
     print(f"✅ Database URL: {settings.database_url}")
-    print(f"✅ MCP Tools registered")
-    
+    print("✅ MCP Tools registered")
+
     yield  # app runs while we're yielded here
-    
+
     # --- shutdown ---
     print("🛑 MCP Server shutdown complete")
 
@@ -65,11 +66,7 @@ async def root():
 @app.get("/health", response_model=HealthCheckResponse)
 def health():
     """Health check."""
-    return HealthCheckResponse(
-        status="ok",
-        service="mcp-server",
-        version="1.0.0"
-    )
+    return HealthCheckResponse(status="ok", service="mcp-server", version="1.0.0")
 
 
 @app.post("/tools/get-image", response_model=ImageData)
@@ -89,7 +86,7 @@ async def tool_get_image(request: GetImageRequest):
 async def tool_validate(request: ValidateRequest):
     """
     MCP Tool: Validate extraction results.
-    
+
     Checks business rules and data quality.
     """
     try:
@@ -102,7 +99,7 @@ async def tool_validate(request: ValidateRequest):
 async def tool_get_context(request: GetContextRequest):
     """
     MCP Tool: Get receipt context from database.
-    
+
     Provides historical data for agent reasoning.
     """
     try:
@@ -115,7 +112,7 @@ async def tool_get_context(request: GetContextRequest):
 async def tool_ocr_text(request: GetImageRequest):
     """
     MCP Tool: Extract raw text from receipt using EasyOCR.
-    
+
     Returns raw text and line-by-line OCR results with confidence scores.
     """
     try:

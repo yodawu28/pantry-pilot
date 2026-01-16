@@ -5,6 +5,7 @@ from app.config import settings
 from shared.types import ImageData
 from PIL import Image
 
+
 class MinioClient:
     """MinIO client wrapper"""
 
@@ -13,7 +14,7 @@ class MinioClient:
             settings.minio_endpoint,
             access_key=settings.minio_access_key,
             secret_key=settings.minio_secret_key,
-            secure=settings.minio_secure
+            secure=settings.minio_secure,
         )
 
     def get_object_bytes(self, object_name: str) -> bytes:
@@ -27,10 +28,11 @@ class MinioClient:
         except S3Error as e:
             raise RuntimeError(f"Failed to fetch from MinIO: {e}")
 
+
 async def get_image_from_storage(image_path: str) -> ImageData:
     """
     MCP Tool: Fetch image from MinIO storage.
-    
+
     Args:
         image_path: MinIO path (format: "minio://bucket/object_name")
     Returns:
@@ -40,12 +42,11 @@ async def get_image_from_storage(image_path: str) -> ImageData:
     # Parsed path
     if not image_path.startswith(settings.storage_minio_prefix):
         raise ValueError(f"Invalid MinIO path: {image_path}")
-    
+
     parts = image_path.replace(settings.storage_minio_prefix, "").split("/", 1)
 
     if len(parts) != 2:
         raise ValueError(f"Invalid MinIO path format: {image_path}")
-
 
     bucket_name, object_name = parts
 
@@ -65,5 +66,5 @@ async def get_image_from_storage(image_path: str) -> ImageData:
         content_type=content_type,
         size_bytes=len(image_bytes),
         width=image.width,
-        height=image.height
+        height=image.height,
     )

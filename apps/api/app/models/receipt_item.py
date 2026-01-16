@@ -1,22 +1,25 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 
 
 class ReceiptItem(Base):
     """Individual line items from receipts."""
+
     __tablename__ = "receipt_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    receipt_id = Column(Integer, ForeignKey(
-        "receipts.id", ondelete="CASCADE"), nullable=False, index=True)
+    receipt_id = Column(
+        Integer, ForeignKey("receipts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     # Item details
     item_name = Column(String(200), nullable=False)
-    quantity = Column(Numeric(10, 3), default=1.0, nullable=False)  # Changed to Numeric to support 0.246
+    quantity = Column(
+        Numeric(10, 3), default=1.0, nullable=False
+    )  # Changed to Numeric to support 0.246
     unit_price = Column(Numeric(10, 2), nullable=True)
     total_price = Column(Numeric(10, 2), nullable=False)
     currency = Column(String(5), default="VND", nullable=False)  # Currency for this item

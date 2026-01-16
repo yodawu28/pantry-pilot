@@ -11,10 +11,12 @@ engine = create_async_engine(settings.database_url, echo=False)
 # Define a minimal Receipt model for MCP queries (read-only)
 Base = declarative_base()
 
+
 class Receipt(Base):
     """Minimal Receipt model for MCP context queries."""
+
     __tablename__ = "receipts"
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, nullable=False)
     merchant_name = Column(String(200))
@@ -25,16 +27,16 @@ class Receipt(Base):
 async def get_receipt_context(receipt_id: int, user_id: int) -> ReceiptContext:
     """
     MCP Tool: Get historical context about user's receipts.
-    
+
     Provides agent with context like:
     - How many receipts user has
     - Merchants they frequently visit
     - Average spending
-    
+
     Args:
         receipt_id: Current receipt ID
         user_id: User ID
-        
+
     Returns:
         ReceiptContext with historical data
     """
@@ -71,5 +73,5 @@ async def get_receipt_context(receipt_id: int, user_id: int) -> ReceiptContext:
             user_id=user_id,
             previous_receipts_count=total_result,
             merchant_history=unique_merchants,
-            avg_total=Decimal(str(avg_total)) if avg_total else None
+            avg_total=Decimal(str(avg_total)) if avg_total else None,
         )

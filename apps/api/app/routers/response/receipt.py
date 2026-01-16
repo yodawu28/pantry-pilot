@@ -26,6 +26,7 @@ class ReceiptsResponse(BaseModel):
 
 class OCRResponse(BaseModel):
     """Response for OCR trigger endpoint"""
+
     receipt_id: int
     status: str
     message: str

@@ -1,6 +1,14 @@
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Date, Numeric, Enum as SQLEnum, Text
+from sqlalchemy import (
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    Date,
+    Numeric,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from app.database import Base
@@ -31,21 +39,23 @@ class Receipt(Base):
 
     currency: Mapped[str] = mapped_column(String, nullable=False, default="USD")
 
-
     ocr_status: Mapped[OCRStatus] = mapped_column(
-        String(20),
-        nullable=False,
-        default=OCRStatus.PENDING,
-        index=True
+        String(20), nullable=False, default=OCRStatus.PENDING, index=True
     )
-    
+
     ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # Raw OCR output
-    
-    parsed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # When extraction completed
-    
-    extraction_confidence: Mapped[Decimal | None] = mapped_column(Numeric(3, 2), nullable=True)  # 0.00-1.00
-    
-    extraction_errors: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array of errors
+
+    parsed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )  # When extraction completed
+
+    extraction_confidence: Mapped[Decimal | None] = mapped_column(
+        Numeric(3, 2), nullable=True
+    )  # 0.00-1.00
+
+    extraction_errors: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON array of errors
 
     # uploaded, processing, processed, failed
     status: Mapped[str] = mapped_column(String, nullable=False, default="uploaded")

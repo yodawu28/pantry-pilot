@@ -1,16 +1,14 @@
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """MCP server settings"""
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8")
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     # Server
     mcp_host: str = "0.0.0.0"
     mcp_port: int = 8001
-
 
     # MinIO
     minio_endpoint: str = "minio:9000"

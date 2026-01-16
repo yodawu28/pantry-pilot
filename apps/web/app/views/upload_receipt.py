@@ -9,11 +9,11 @@ def render_upload_page():
     st.subheader("Upload Receipt")
 
     # Initialize session state for upload tracking
-    if 'upload_success' not in st.session_state:
+    if "upload_success" not in st.session_state:
         st.session_state.upload_success = False
-    
+
     # Reset file uploader by incrementing key on success
-    if 'upload_counter' not in st.session_state:
+    if "upload_counter" not in st.session_state:
         st.session_state.upload_counter = 0
 
     col1, col2 = st.columns([2, 1])
@@ -28,7 +28,10 @@ def render_upload_page():
 
     with col2:
         purchase_date = st.date_input(
-            "Purchase Date", value=date.today(), max_value=date.today(), key=f"single_upload_date_{st.session_state.upload_counter}"
+            "Purchase Date",
+            value=date.today(),
+            max_value=date.today(),
+            key=f"single_upload_date_{st.session_state.upload_counter}",
         )
 
     if upload_file is not None:
@@ -70,7 +73,7 @@ def render_upload_page():
                         # Optional: Show JSON in expander for debugging
                         with st.expander("🔍 View raw data"):
                             st.json(receipt)
-                        
+
                         # Reset form by incrementing counter
                         st.session_state.upload_counter += 1
                         st.rerun()

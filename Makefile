@@ -1,4 +1,4 @@
-.PHONY: help install dev api agent mcp web all stop infra db-migrate db-upgrade logs clean
+.PHONY: help install dev api agent mcp web all stop infra db-migrate db-upgrade logs clean format lint fix check
 
 # Default target
 help:
@@ -29,6 +29,12 @@ help:
 	@echo "  make stop          - Stop all local services"
 	@echo "  make clean         - Clean up temp files and caches"
 	@echo "  make test          - Run all tests"
+	@echo ""
+	@echo "Code Quality:"
+	@echo "  make format        - Format code with black"
+	@echo "  make lint          - Lint code with ruff"
+	@echo "  make fix           - Auto-fix linting issues with ruff"
+	@echo "  make check         - Run both format check and lint"
 
 # ============== Setup ==============
 
@@ -67,7 +73,7 @@ mcp:
 
 web:
 	@echo "🌐 Starting Web UI on port 8080..."
-	cd apps/web && uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+	cd apps/web && streamlit run app/main.py
 
 # Run all services in background
 all: infra
@@ -160,6 +166,31 @@ clean:
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✅ Cleanup complete"
+
+# ============== Code Quality ==============
+
+format:
+	@echo "🎨 Formatting code with black..."
+	uv run black apps/ packages/ --exclude="venv|env|.venv"
+	@echo "✅ Code formatted"
+
+format-check:
+	@echo "🔍 Checking code format with black..."
+	uv run black apps/ packages/ --check --exclude="venv|env|.venv"
+	@echo "✅ Format check complete"
+
+lint:
+	@echo "🔍 Linting code with ruff..."
+	uv run ruff check apps/ packages/
+	@echo "✅ Lint complete"
+
+fix:
+	@echo "🔧 Auto-fixing linting issues with ruff..."
+	uv run ruff check apps/ packages/ --fix
+	@echo "✅ Auto-fix complete"
+
+check: format-check lint
+	@echo "✅ All checks passed"
 
 # ============== Quick Start ==============
 
