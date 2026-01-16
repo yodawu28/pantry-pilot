@@ -10,6 +10,7 @@ class ReceiptResponse(BaseModel):
     image_path: str
     purchase_date: str
     status: str
+    ocr_status: str
     created_at: str
 
 
@@ -21,3 +22,10 @@ class ReceiptsResponse(BaseModel):
     total: int
     receipts: List[ReceiptResponse]
     last_id: int
+
+
+class OCRResponse(BaseModel):
+    """Response for OCR trigger endpoint"""
+    receipt_id: int
+    status: str
+    message: str

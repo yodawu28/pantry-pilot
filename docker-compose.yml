@@ -1,0 +1,119 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pantry-pilot-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pantry_pilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: pantry-pilot-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # 🆕 W02: MCP Server
+  mcp:
+    build:
+      context: .
+      dockerfile: apps/mcp/Dockerfile
+    container_name: pantry-pilot-mcp
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 8001
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/pantry_pilot
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - minio
+    volumes:
+      - ./apps/mcp/app:/app/app
+      - ./packages/shared:/packages/shared
+
+  # 🆕 W02: Agent Server
+  agent:
+    build:
+      context: .
+      dockerfile: apps/agent/Dockerfile
+    container_name: pantry-pilot-agent
+    environment:
+      AGENT_HOST: 0.0.0.0
+      AGENT_PORT: 8002
+      MCP_URL: http://mcp:8001
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: gpt-4o
+    ports:
+      - "8002:8002"
+    depends_on:
+      - mcp
+    volumes:
+      - ./apps/agent/app:/app/app
+      - ./packages/shared:/packages/shared
+
+  # 🔄 Updated API
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: pantry-pilot-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/pantry_pilot
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      AGENT_URL: http://agent:8002  # 🆕
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - minio
+      - agent
+    volumes:
+      - ./apps/api/app:/app/app
+      - ./packages/shared:/packages/shared
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: pantry-pilot-web
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+
+volumes:
+  postgres_data:
+  minio_data:

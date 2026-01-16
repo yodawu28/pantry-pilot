@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     # database
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/pantry_pilot"
 
+    # Agent URL
+    agent_url: str = "http://localhost:8002"
+
     # MinIO
     minio_endpoint: str = "localhost:9000"
     minio_access_key: str = "minioadmin"

@@ -1,11 +1,13 @@
 from datetime import date
 from typing import List
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.routers.response.receipt import ReceiptResponse, ReceiptsResponse, ReceiptsUploadResponse
+from app.routers.response.receipt import OCRResponse, ReceiptResponse, ReceiptsResponse, ReceiptsUploadResponse
 from app.services.minio_service import MinioService
+from app.services.ocr_service import OCRService
 from app.services.receipt_service import ReceiptService
 
 
@@ -42,6 +44,7 @@ async def upload_receipt(
         image_path=receipt.image_path,
         purchase_date=str(receipt.purchase_date),
         status=receipt.status,
+        ocr_status=receipt.ocr_status,
         created_at=receipt.created_at.isoformat() if receipt.created_at else "",
     )
 
@@ -88,6 +91,7 @@ async def list_receipts(
             image_path=receipt.image_path,
             purchase_date=str(receipt.purchase_date),
             status=receipt.status,
+            ocr_status=receipt.ocr_status,
             created_at=receipt.created_at.isoformat() if receipt.created_at else "",
         )
         for receipt in receipts
@@ -120,5 +124,96 @@ async def get_receipt(id: int, db: AsyncSession = Depends(get_db)):
         image_path=receipt.image_path,
         purchase_date=str(receipt.purchase_date),
         status=receipt.status,
+        ocr_status=receipt.ocr_status,
         created_at=receipt.created_at.isoformat() if receipt.created_at else "",
     )
+
+
+@router.post("/{id}/ocr", response_model=OCRResponse)
+async def trigger_ocr(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Manually trigger OCR extraction for a receipt.
+
+    - **id**: Receipt ID to process
+    """
+    receipt_service = ReceiptService(db)
+    receipt = await receipt_service.get(id)
+
+    if not receipt:
+        raise HTTPException(status_code=404, detail=f"Receipt with id {id} not found")
+
+    ocr_service = OCRService()
+
+    try:
+        await ocr_service.extract_receipt(
+            receipt_id=receipt.id,
+            image_path=receipt.image_path,
+            user_id=receipt.user_id,
+            db=db,
+        )
+        return OCRResponse(
+            receipt_id=id,
+            status="processing",
+            message="OCR extraction started successfully",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OCR extraction failed: {str(e)}")
+
+
+@router.post("/{id}/ocr/retry", response_model=OCRResponse)
+async def retry_ocr(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retry OCR extraction for a failed receipt.
+
+    - **id**: Receipt ID to retry
+    """
+    receipt_service = ReceiptService(db)
+    receipt = await receipt_service.get(id)
+
+    if not receipt:
+        raise HTTPException(status_code=404, detail=f"Receipt with id {id} not found")
+
+    ocr_service = OCRService()
+
+    try:
+        await ocr_service.retry_extraction(
+            receipt_id=receipt.id,
+            image_path=receipt.image_path,
+            user_id=receipt.user_id,
+            db=db,
+        )
+        return OCRResponse(
+            receipt_id=id,
+            status="processing",
+            message="OCR extraction retry started successfully",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OCR retry failed: {str(e)}")
+
+
+@router.get("/{id}/ocr/status")
+async def get_ocr_status(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get OCR extraction status for a receipt.
+
+    - **id**: Receipt ID
+    """
+    receipt_service = ReceiptService(db)
+    receipt = await receipt_service.get(id)
+
+    if not receipt:
+        raise HTTPException(status_code=404, detail=f"Receipt with id {id} not found")
+
+    ocr_service = OCRService()
+    status = await ocr_service.get_extraction_status(id)
+
+    return status
