@@ -1,8 +1,20 @@
 from datetime import date, datetime
-from sqlalchemy import Integer, String, DateTime, ForeignKey, Date
-from sqlalchemy.orm import Mapped, mapped_column
+from decimal import Decimal
+from typing import List
+from sqlalchemy import (
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    Date,
+    Numeric,
+    Text,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.database import Base
+from app.models.receipt_item import ReceiptItem
+from shared.types import OCRStatus
 
 
 class Receipt(Base):
@@ -23,6 +35,30 @@ class Receipt(Base):
 
     purchase_date: Mapped[date] = mapped_column(Date, nullable=False)
 
+    merchant_name: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    total_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+
+    currency: Mapped[str] = mapped_column(String, nullable=False, default="USD")
+
+    ocr_status: Mapped[OCRStatus] = mapped_column(
+        String(20), nullable=False, default=OCRStatus.PENDING, index=True
+    )
+
+    ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)  # Raw OCR output
+
+    parsed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )  # When extraction completed
+
+    extraction_confidence: Mapped[Decimal | None] = mapped_column(
+        Numeric(3, 2), nullable=True
+    )  # 0.00-1.00
+
+    extraction_errors: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON array of errors
+
     # uploaded, processing, processed, failed
     status: Mapped[str] = mapped_column(String, nullable=False, default="uploaded")
 
@@ -36,6 +72,9 @@ class Receipt(Base):
         DateTime(timezone=True),
         onupdate=func.now(),
     )
+
+    # Relationships
+    items: Mapped[List["ReceiptItem"]] = relationship("ReceiptItem", back_populates="receipt")
 
 
 def create_receipt(user_id: int, image_path: str, purchase_date: date) -> Receipt:

@@ -1,0 +1,34 @@
+[project]
+name = "pantry-pilot-queue"
+version = "1.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    "redis>=5.0.0",
+    "rq>=1.15.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "httpx>=0.26.0",
+    "python-dotenv>=1.0.0",
+    "sqlalchemy>=2.0.25",
+    "asyncpg>=0.29.0",
+]
+
+[tool.uv.sources]
+pantry-pilot-shared = { path = "../../packages/shared", editable = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.14.10",
+    "black>=25.12.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pantry_queue*"]
+exclude = ["tests*"]
