@@ -28,9 +28,7 @@ class SimpleQueueClient:
             print(f"[Queue Client] Redis not available: {e}")
             self.available = False
 
-    def enqueue_ocr_task(
-        self, receipt_id: int, image_path: str, user_id: int
-    ) -> Optional[Job]:
+    def enqueue_ocr_task(self, receipt_id: int, image_path: str, user_id: int) -> Optional[Job]:
         """Enqueue OCR task by function path (worker will resolve it)"""
         if not self.available:
             return None

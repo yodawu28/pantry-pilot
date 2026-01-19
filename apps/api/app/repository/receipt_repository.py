@@ -32,8 +32,7 @@ class ReceiptRepository:
     async def get_by_id_with_items(self, receipt_id: int) -> Receipt | None:
         """Get receipt by ID with line items loaded"""
         result = await self.db.execute(
-            select(Receipt).options(selectinload(Receipt.items)).where(
-                Receipt.id == receipt_id)
+            select(Receipt).options(selectinload(Receipt.items)).where(Receipt.id == receipt_id)
         )
         return result.scalar_one_or_none()
 
@@ -52,8 +51,7 @@ class ReceiptRepository:
             conditions.append(Receipt.id < last_id)
 
         result = await self.db.execute(
-            select(Receipt).where(and_(*conditions)
-                                  ).order_by(order_by).limit(limit)
+            select(Receipt).where(and_(*conditions)).order_by(order_by).limit(limit)
         )
 
         return list(result.scalars().all())
@@ -61,7 +59,7 @@ class ReceiptRepository:
     async def count(self, params: dict = {}) -> int:
         conditions = self.__get_conditions(params)
 
-        result =  await self.db.execute(
+        result = await self.db.execute(
             select(func.count()).select_from(Receipt).where(and_(*conditions))
         )
 
@@ -91,7 +89,6 @@ class ReceiptRepository:
             conditions.append(Receipt.ocr_status == params["ocr_status"])
 
         return conditions
-    
 
     def __get_order_by(self, params: dict):
         order_by: str = str(params.get("order_by"))
@@ -104,5 +101,5 @@ class ReceiptRepository:
 
         if order_direction == "asc":
             return order.asc()
-        
+
         return order.desc()

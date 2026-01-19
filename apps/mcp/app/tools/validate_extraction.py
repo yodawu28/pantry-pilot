@@ -29,9 +29,13 @@ async def validate_extraction(metadata: ReceiptMetadata, items: list[LineItem]) 
         # Very lenient warnings for unusually high amounts
         # These are just informational, not errors
         if metadata.currency == "VND" and metadata.total_amount > 100000000:  # 100 triệu
-            warnings.append(f"Total amount very high for VND: {metadata.total_amount:,.0f} (>100M).")
+            warnings.append(
+                f"Total amount very high for VND: {metadata.total_amount:,.0f} (>100M)."
+            )
         elif metadata.currency != "VND" and metadata.total_amount > 50000:
-            warnings.append(f"Total amount very high for {metadata.currency}: {metadata.total_amount:,.0f}.")
+            warnings.append(
+                f"Total amount very high for {metadata.currency}: {metadata.total_amount:,.0f}."
+            )
     else:
         errors.append("Total amount missing.")
 
@@ -49,17 +53,17 @@ async def validate_extraction(metadata: ReceiptMetadata, items: list[LineItem]) 
             # B. Kiểm tra logic nhân: Quantity * Unit Price = Total Price
             # Skip validation for discounts/promotions (negative prices) - they follow different rules
             is_discount = Decimal(str(item.total_price)) < 0
-            
+
             if not is_discount and item.unit_price is not None:
                 # Flexible validation - prices aren't the main target
                 expected_item_total = Decimal(str(item.quantity)) * Decimal(str(item.unit_price))
                 actual_total = Decimal(str(item.total_price))
                 diff = abs(expected_item_total - actual_total)
-                
+
                 # Very lenient - only warn if difference is extreme (>50% or >50k VND)
                 tolerance_percentage = expected_item_total * Decimal("0.50")  # 50%
                 tolerance = max(Decimal("50000"), tolerance_percentage)
-                
+
                 if diff > tolerance:
                     # Even extreme mismatches are just warnings - focus is on item extraction
                     warnings.append(
@@ -80,9 +84,8 @@ async def validate_extraction(metadata: ReceiptMetadata, items: list[LineItem]) 
 
             if diff > allowed_diff:
                 # Even large mismatches are warnings - allow extraction to proceed
-                missing_amount = Decimal(str(metadata.total_amount)) - calculated_grand_total
-                percentage_diff = diff/Decimal(str(metadata.total_amount))*100
-                
+                percentage_diff = diff / Decimal(str(metadata.total_amount)) * 100
+
                 warnings.append(
                     f"Total mismatch: Sum of {len(items)} items ({calculated_grand_total:,.0f}) "
                     f"vs Receipt Total ({metadata.total_amount:,.0f}). "

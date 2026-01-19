@@ -6,7 +6,6 @@ from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
-from decimal import Decimal
 
 from pantry_queue.config import settings
 
@@ -52,17 +51,15 @@ async def call_agent_extract(receipt_id: int, image_path: str, user_id: int) -> 
         if response.status_code == 200:
             return response.json()
         else:
-            raise Exception(
-                f"Agent extraction failed: {response.status_code} - {response.text}"
-            )
+            raise Exception(f"Agent extraction failed: {response.status_code} - {response.text}")
 
 
 async def save_extraction_result(receipt_id: int, result: dict):
     """
     Save extraction result to database.
-    
+
     Updates receipt and inserts line items.
-    
+
     Args:
         receipt_id: Receipt ID
         result: Extraction result from agent
@@ -74,14 +71,14 @@ async def save_extraction_result(receipt_id: int, result: dict):
         try:
             # Extract metadata from result (agent returns metadata at top level)
             metadata = result.get("metadata", {})
-            
+
             # Update receipt with extracted data
             merchant_name = metadata.get("merchant_name")
             total_amount = metadata.get("total_amount")
             currency = metadata.get("currency", "VND")
             purchase_date = parse_date(metadata.get("purchase_date"))
             confidence = metadata.get("confidence", 0.0)
-            
+
             # Build update query
             update_sql = """
                 UPDATE receipts SET
@@ -95,7 +92,7 @@ async def save_extraction_result(receipt_id: int, result: dict):
                     updated_at = NOW()
                 WHERE id = :receipt_id
             """
-            
+
             await session.execute(
                 text(update_sql),
                 {
@@ -105,15 +102,15 @@ async def save_extraction_result(receipt_id: int, result: dict):
                     "currency": currency,
                     "purchase_date": purchase_date,
                     "confidence": confidence,
-                }
+                },
             )
-            
+
             # Delete existing line items for this receipt
             await session.execute(
                 text("DELETE FROM receipt_items WHERE receipt_id = :receipt_id"),
-                {"receipt_id": receipt_id}
+                {"receipt_id": receipt_id},
             )
-            
+
             # Insert line items (agent returns items at top level with item_name)
             items = result.get("items", [])
             for item in items:
@@ -124,14 +121,14 @@ async def save_extraction_result(receipt_id: int, result: dict):
                 total_price = item.get("total_price", 0)
                 item_currency = item.get("currency", "VND")
                 confidence = item.get("confidence", 0.0)
-                
+
                 insert_sql = """
                     INSERT INTO receipt_items 
                         (receipt_id, item_name, quantity, unit_price, total_price, currency, confidence, created_at, updated_at)
                     VALUES 
                         (:receipt_id, :item_name, :quantity, :unit_price, :total_price, :currency, :confidence, NOW(), NOW())
                 """
-                
+
                 await session.execute(
                     text(insert_sql),
                     {
@@ -142,12 +139,12 @@ async def save_extraction_result(receipt_id: int, result: dict):
                         "total_price": float(total_price) if total_price else 0.0,
                         "currency": item_currency,
                         "confidence": float(confidence) if confidence else None,
-                    }
+                    },
                 )
-            
+
             await session.commit()
             print(f"[Queue Worker] Saved {len(items)} items for receipt {receipt_id}")
-            
+
         except Exception as e:
             await session.rollback()
             raise e
@@ -170,19 +167,21 @@ async def update_receipt_status(receipt_id: int, ocr_status: str, error_message:
     async with async_session() as session:
         if error_message:
             await session.execute(
-                text("""
+                text(
+                    """
                     UPDATE receipts 
                     SET ocr_status = :status, 
                         extraction_errors = :error,
                         updated_at = NOW() 
                     WHERE id = :id
-                """),
-                {"status": ocr_status, "error": error_message, "id": receipt_id}
+                """
+                ),
+                {"status": ocr_status, "error": error_message, "id": receipt_id},
             )
         else:
             await session.execute(
                 text("UPDATE receipts SET ocr_status = :status, updated_at = NOW() WHERE id = :id"),
-                {"status": ocr_status, "id": receipt_id}
+                {"status": ocr_status, "id": receipt_id},
             )
         await session.commit()
 
@@ -212,7 +211,7 @@ def process_receipt_ocr(receipt_id: int, image_path: str, user_id: int) -> dict:
 
         # Call agent service
         result = asyncio.run(call_agent_extract(receipt_id, image_path, user_id))
-        
+
         # Check if extraction was successful
         if result.get("success"):
             # Save extraction result to database

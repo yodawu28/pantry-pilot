@@ -3,7 +3,7 @@
 import redis
 from rq import Queue
 from rq.job import Job
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from pantry_queue.config import settings
 
 

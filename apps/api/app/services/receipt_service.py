@@ -42,10 +42,10 @@ class ReceiptService:
         return receipts
 
     async def get_receipts(
-        self, user_id: int, last_id: int = -1, limit: int = 5, params = {}
+        self, user_id: int, last_id: int = -1, limit: int = 5, params={}
     ) -> List[Receipt]:
         """Get user receipts"""
-        params['user_id'] = user_id
+        params["user_id"] = user_id
         params["last_id"] = last_id
         params["limit"] = limit
         return await self.receipt_repository.get_all(params=params)
@@ -58,7 +58,6 @@ class ReceiptService:
         """Get receipt by Id with line items"""
         return await self.receipt_repository.get_by_id_with_items(id)
 
-    async def count(self, params = {}) -> int:
+    async def count(self, params={}) -> int:
         """Count receipts"""
         return await self.receipt_repository.count(params=params)
-        

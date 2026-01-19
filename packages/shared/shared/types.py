@@ -26,7 +26,7 @@ class ReceiptMetadata(BaseModel):
 
 class LineItem(BaseModel):
     """Single receipt line item.
-    
+
     Supports regular items (positive prices) and discounts/promotions (negative prices).
     """
 
@@ -37,9 +37,7 @@ class LineItem(BaseModel):
     unit_price: Optional[Decimal] = Field(
         default=None, decimal_places=2
     )  # Can be negative for discounts
-    total_price: Decimal = Field(
-        ..., decimal_places=2
-    )  # Can be negative for discounts/refunds
+    total_price: Decimal = Field(..., decimal_places=2)  # Can be negative for discounts/refunds
     currency: str = Field(default="VND", max_length=5)  # Currency for this item
     confidence: float = Field(ge=0.0, le=1.0, default=0.0)
 
