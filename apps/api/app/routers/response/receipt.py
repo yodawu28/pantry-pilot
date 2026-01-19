@@ -38,6 +38,8 @@ class ReceiptResponse(BaseModel):
 
 class ReceiptsUploadResponse(BaseModel):
     total: int
+    queued: int = 0
+    job_ids: List[str] = []
 
 
 class ReceiptsResponse(BaseModel):

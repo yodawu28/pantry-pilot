@@ -17,11 +17,14 @@ dependencies = [
     "ruff>=0.14.10",
     "black>=25.12.0",
     "aiosqlite>=0.22.1",
-    "httpx>=0.26.0", 
+    "httpx>=0.26.0",
+    "redis>=5.0.0",
+    "rq>=1.15.0",
 ]
 
 [tool.uv.sources]
 pantry-pilot-shared = { path = "../../packages/shared", editable = true }
+pantry-pilot-queue = { path = "../queue", editable = true }
 
 [dependency-groups]
 dev = [

@@ -8,6 +8,8 @@ Smart pantry management system with receipt OCR, expiration tracking, and recipe
 - **Frontend**: Streamlit
 - **Database**: PostgreSQL 16
 - **Storage**: MinIO (S3-compatible)
+- **Queue**: Redis + RQ (Redis Queue)
+- **AI/OCR**: OpenAI GPT-4o Vision
 - **Vector DB**: Qdrant
 - **Package Manager**: uv
 
@@ -64,6 +66,9 @@ docker compose up --build
 pantry-pilot/
 ├── apps/
 │   ├── api/           # FastAPI backend
+│   ├── agent/         # AI/OCR extraction agent
+│   ├── mcp/           # MCP server for tools
+│   ├── queue/         # Redis Queue workers
 │   └── web/           # Streamlit frontend
 ├── infra/
 │   └── postgres/      # DB init scripts
@@ -117,8 +122,42 @@ streamlit run app/main.py
 | `POST` | `/receipts` | Upload receipt (multipart) |
 | `GET` | `/receipts?user_id=1` | List receipts for user |
 | `GET` | `/receipts/{id}` | Get receipt details |
+| `POST` | `/receipts/ocr/process-all` | Queue all pending receipts for OCR |
+| `GET` | `/receipts/ocr/queue-status` | Check queue status |
 
 See full interactive docs: **http://localhost:8000/docs**
+
+---
+
+## Local Development (All Services)
+
+### 1. Start Infrastructure
+```bash
+# Start Postgres, MinIO, Redis
+docker-compose up -d postgres minio redis
+```
+
+### 2. Start Services
+```bash
+# Terminal 1: API
+cd apps/api && uvicorn app.main:app --reload --port 8000
+
+# Terminal 2: Agent
+cd apps/agent && uvicorn app.main:app --reload --port 8002
+
+# Terminal 3: Queue Worker (macOS needs OBJC env var)
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+PYTHONPATH=apps/queue rq worker pantry-pilot --url redis://localhost:6379 -v
+
+# Terminal 4: Web UI
+cd apps/web && streamlit run app/main.py
+```
+
+### 3. Process Receipts
+```bash
+# Upload receipts via web UI, then:
+curl -X POST "http://localhost:8000/receipts/ocr/process-all?user_id=1&limit=5"
+```
 
 ---
 
@@ -129,8 +168,11 @@ Copy `.env.example` to `.env` and customize if needed.
 Key variables:
 - `DATABASE_URL`: Postgres connection string
 - `MINIO_ENDPOINT`: MinIO server address
+- `REDIS_HOST`: Redis server (localhost for local, redis for Docker)
+- `OPENAI_API_KEY`: OpenAI API key for GPT-4o Vision
 - `QDRANT_URL`: Qdrant server address
 - `API_URL`: API base URL (for Streamlit)
+- `AGENT_URL`: Agent service URL
 
 ---
 

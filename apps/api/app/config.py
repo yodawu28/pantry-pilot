@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # Qdrant
     qdrant_url: str = "http://localhost:6333"
 
+    # Redis Queue
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000

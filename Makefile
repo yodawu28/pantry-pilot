@@ -75,6 +75,10 @@ web:
 	@echo "🌐 Starting Web UI on port 8080..."
 	cd apps/web && streamlit run app/main.py
 
+queue:
+	@echo "🌐 Starting request queue..."
+	export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES && cd apps/queue && rq worker pantry-pilot --url redis://localhost:6379 -v
+
 # Run all services in background
 all: infra
 	@echo "🚀 Starting all services..."

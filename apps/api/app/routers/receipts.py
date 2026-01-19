@@ -14,6 +14,7 @@ from app.routers.response.receipt import (
 from app.services.minio_service import MinioService
 from app.services.ocr_service import OCRService
 from app.services.receipt_service import ReceiptService
+from app.services.queue_client import simple_queue_client
 
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
@@ -33,7 +34,7 @@ async def upload_receipt(
     minio_service: MinioService = Depends(get_minio_service),
 ):
     """
-    Upload receipt image
+    Upload receipt image and automatically queue for OCR processing
 
     - **file**: Image file (jpg/png/jpeg)
     - **purchase_date**: Date of purchase
@@ -42,6 +43,18 @@ async def upload_receipt(
 
     receipt_service = ReceiptService(db, minio_service)
     receipt = await receipt_service.upload_receipt(file, purchase_date, user_id)
+
+    # Automatically queue for OCR processing
+    try:
+        job_id = simple_queue_client.enqueue_ocr_task(
+            receipt_id=receipt.id,
+            image_path=receipt.image_path,
+            user_id=receipt.user_id
+        )
+        print(f"[API] Queued OCR for receipt {receipt.id}: {job_id}")
+    except Exception as e:
+        print(f"[API] Failed to queue OCR for receipt {receipt.id}: {str(e)}")
+        # Don't fail the upload if queue fails
 
     return ReceiptResponse(
         id=receipt.id,
@@ -63,7 +76,7 @@ async def upload_receipts(
     minio_service: MinioService = Depends(get_minio_service),
 ):
     """
-    Upload multiple receipt images
+    Upload multiple receipt images and automatically queue for OCR processing
 
     - **files**: List of image files (jpg/png/jpeg)
     - **purchase_date**: Date of purchase
@@ -71,9 +84,26 @@ async def upload_receipts(
     """
 
     receipt_service = ReceiptService(db, minio_service)
-    total = await receipt_service.upload_receipts(files, purchase_date, user_id)
+    receipts = await receipt_service.upload_receipts(files, purchase_date, user_id)
 
-    return ReceiptsUploadResponse(total=total)
+    # Automatically queue all receipts for OCR processing
+    job_ids = []
+    queued = 0
+    for receipt in receipts:
+        try:
+            job_id = simple_queue_client.enqueue_ocr_task(
+                receipt_id=receipt.id,
+                image_path=receipt.image_path,
+                user_id=receipt.user_id
+            )
+            job_ids.append(job_id)
+            queued += 1
+            print(f"[API] Queued OCR for receipt {receipt.id}: {job_id}")
+        except Exception as e:
+            print(f"[API] Failed to queue OCR for receipt {receipt.id}: {str(e)}")
+            # Continue with other receipts
+
+    return ReceiptsUploadResponse(total=len(receipts), queued=queued, job_ids=job_ids)
 
 
 @router.get("", response_model=ReceiptsResponse)
@@ -84,6 +114,8 @@ async def list_receipts(
     Get all receipts for a user
 
     - **user_id**: User ID (default = 1)
+    - **last_id**: Pagination cursor, receipts with id < last_id (default: -1 = no filter)
+    - **limit**: Max number of receipts to return (default: 50)
     """
 
     receipt_service = ReceiptService(db)
@@ -108,7 +140,7 @@ async def list_receipts(
 
     last_id = -1
     if len(responses) > 0:
-        last_id = responses[-1].id
+        last_id = responses[0].id
 
     return ReceiptsResponse(total=len(responses), receipts=responses, last_id=last_id)
 
@@ -248,3 +280,109 @@ async def get_ocr_status(
     status = await ocr_service.get_extraction_status(id)
 
     return status
+
+
+@router.post("/ocr/process-all")
+async def process_all_receipts(
+    user_id: int = 1,
+    limit: int | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Trigger OCR processing for all pending receipts using Redis Queue.
+
+    - **user_id**: User ID (default: 1)
+    - **limit**: Optional limit on number of receipts to process
+    
+    Uses RQ (Redis Queue) for distributed task processing.
+    """
+    if not simple_queue_client.available:
+        raise HTTPException(
+            status_code=503,
+            detail="Queue service not available. Please check Redis connection."
+        )
+    
+    try:
+        # Get all pending receipts
+        receipt_service = ReceiptService(db)
+        jobs = []
+
+        last_id = -1
+        page_limit = 5
+
+        while True:
+            # Get pending receipts page by page
+            receipts = await receipt_service.get_receipts(
+                user_id, last_id, page_limit, 
+                params={"ocr_status": "pending"}
+            ) 
+
+            if len(receipts) == 0:
+                break
+
+            # Enqueue each receipt
+            for receipt in receipts:
+                job = simple_queue_client.enqueue_ocr_task(
+                    receipt_id=receipt.id,
+                    image_path=receipt.image_path,
+                    user_id=user_id,
+                )
+                if job:
+                    jobs.append(job)
+            
+            last_id = receipts[-1].id
+            break
+            
+        
+        
+        return {
+            "status": "queued",
+            "message": f"Queued {len(jobs)} receipts for OCR processing",
+            "user_id": user_id,
+            "queued": len(jobs),
+            "job_ids": [job.id for job in jobs],
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to queue receipts: {str(e)}"
+        )
+
+
+@router.get("/ocr/queue-status")
+async def get_queue_status(receipt_id: int | None = None):
+    """
+    Get OCR queue status from Redis Queue.
+    
+    - **receipt_id**: Optional receipt ID to check specific receipt status
+    
+    Returns current queue state.
+    """
+    if not simple_queue_client.available:
+        raise HTTPException(
+            status_code=503,
+            detail="Queue service not available"
+        )
+    
+    try:
+        if receipt_id:
+            # Get specific job status
+            job_status = simple_queue_client.get_job_status(f"ocr-{receipt_id}")
+            return {
+                "receipt_id": receipt_id,
+                **job_status,
+            }
+        
+        # Return overall queue info
+        queue_info = simple_queue_client.get_queue_info()
+        return {
+            "queue": queue_info,
+            "service": "redis-queue",
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get queue status: {str(e)}"
+        )
